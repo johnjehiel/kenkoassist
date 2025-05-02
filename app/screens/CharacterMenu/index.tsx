@@ -1,6 +1,7 @@
 import Drawer from '@components/views/Drawer'
 import HeaderButton from '@components/views/HeaderButton'
 import HeaderTitle from '@components/views/HeaderTitle'
+import CharacterList from '@screens/CharacterMenu/CharacterList'
 import { SafeAreaView } from 'react-native'
 
 import SettingsDrawer from '../SettingsDrawer'
@@ -22,7 +23,9 @@ const CharacterMenu = () => {
                 }}>
                 <HeaderTitle title='KenkoAssist' />
                 <HeaderButton headerLeft={() => <Drawer.Button drawerID={Drawer.ID.SETTINGS} />} />
-
+                
+                <CharacterList showHeader={!showDrawer} />
+                
                 <SettingsDrawer />
             </SafeAreaView>
         </Drawer.Gesture>
