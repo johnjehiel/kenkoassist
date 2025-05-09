@@ -6,6 +6,7 @@ import { Text, View } from 'react-native'
 import { useMMKVBoolean } from 'react-native-mmkv'
 
 import UserInfo from './UserInfo'
+import RouteList from './RouteList'
 
 const SettingsDrawer = () => {
     const { color, spacing } = Theme.useTheme()
@@ -19,6 +20,7 @@ const SettingsDrawer = () => {
                 paddingBottom: spacing.xl2,
             }}>
             <UserInfo />
+            <RouteList />
             <Text
                 style={{
                     alignSelf: 'center',
