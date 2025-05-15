@@ -1,7 +1,9 @@
 import HeaderTitle from '@components/views/HeaderTitle'
 import { db } from '@db'
 import { AntDesign } from '@expo/vector-icons'
+import useLocalAuth from '@lib/hooks/LocalAuth'
 import { Theme } from '@lib/theme/ThemeManager'
+import { loadChatOnInit, startupApp } from '@lib/utils/Startup'
 import CharacterMenu from '@screens/CharacterMenu'
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator'
 import { SplashScreen } from 'expo-router'
@@ -14,12 +16,19 @@ const Home = () => {
     const { color } = Theme.useTheme()
     const styles = useStyles()
     const { success, error } = useMigrations(db, migrations)
+    const { authorized, retry } = useLocalAuth()
 
     const [firstRender, setFirstRender] = useState<boolean>(true)
 
+    useEffect(() => {
+        if (authorized && success) {
+            loadChatOnInit()
+        }
+    }, [authorized])
 
     useEffect(() => {
         if (success) {
+            startupApp()
             setFirstRender(false)
             SplashScreen.hideAsync()
         }
@@ -30,6 +39,22 @@ const Home = () => {
             <View style={styles.centeredContainer}>
                 <HeaderTitle />
                 <Text style={styles.title}>Database Migration Failed!</Text>
+            </View>
+        )
+    if (!authorized)
+        return (
+            <View style={[styles.centeredContainer, { rowGap: 60 }]}>
+                <HeaderTitle />
+                <AntDesign
+                    name="lock"
+                    size={120}
+                    style={{ marginBottom: 12 }}
+                    color={color.text._500}
+                />
+                <Text style={styles.title}>Authentication Required</Text>
+                <TouchableOpacity onPress={retry} style={styles.button}>
+                    <Text style={styles.buttonText}>Try Again</Text>
+                </TouchableOpacity>
             </View>
         )
     if (!firstRender && success) return <CharacterMenu />
