@@ -34,10 +34,10 @@ export enum AppSettings {
  */
 export const AppSettingsDefault: Record<AppSettings, boolean> = {
     [AppSettings.AnimateEditor]: true,
-    [AppSettings.AutoLoadLocal]: false,
+    [AppSettings.AutoLoadLocal]: true,
     [AppSettings.AutoScroll]: true,
     [AppSettings.ChatOnStartup]: false,
-    [AppSettings.CreateFirstMes]: true,
+    [AppSettings.CreateFirstMes]: false,
     [AppSettings.DarkMode]: true,
     [AppSettings.DevMode]: false,
     [AppSettings.SendOnEnter]: false,
@@ -55,7 +55,7 @@ export const AppSettingsDefault: Record<AppSettings, boolean> = {
     [AppSettings.ShowModelInChat]: false,
     [AppSettings.ShowTags]: false,
     [AppSettings.UseModelTemplate]: true,
-    [AppSettings.ShowTokenPerSecond]: true,
+    [AppSettings.ShowTokenPerSecond]: false,
     [AppSettings.AutoLoadUser]: true,
 }
 
