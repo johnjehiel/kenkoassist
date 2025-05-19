@@ -96,7 +96,7 @@ module.exports = {
                 origin: false,
             },
             eas: {
-                projectId: '', // Yet to add EAS projectId
+                projectId: '43c7e715-3ae7-4625-9027-25247e73e7e9',
             },
         },
     },
