@@ -193,7 +193,7 @@ export namespace Instructs {
     export const useInstruct = create<InstructState>()(
         persist(
             (set, get: () => InstructState) => ({
-                data: defaultInstructs[0],
+                data: defaultInstructs[2], // set default instruct as Llama 3
                 tokenCache: undefined,
                 load: async (id: number) => {
                     const data = await db.query.instruct(id)

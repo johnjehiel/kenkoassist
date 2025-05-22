@@ -5,9 +5,9 @@ import Avatar from '@components/views/Avatar'
 import PopupMenu from '@components/views/PopupMenu'
 import { AntDesign } from '@expo/vector-icons'
 import { useViewerState } from '@lib/state/AvatarViewer'
-import { CharacterCardData, Characters } from '@lib/state/Characters' // remove characters for now
+import { CharacterCardData, Characters } from '@lib/state/Characters'
 import { Theme } from '@lib/theme/ThemeManager'
-import AvatarViewer from '@screens/ChatMenu/ChatWindow/AvatarViewer' // remove characters for now
+import AvatarViewer from '@screens/ChatMenu/ChatWindow/AvatarViewer'
 import * as DocumentPicker from 'expo-document-picker'
 import React, { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
