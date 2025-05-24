@@ -11,4 +11,5 @@ export enum Storage {
     Samplers = 'samplerstate-storage',
     TTS = 'tts-data-storage',
     ColorState = 'colorscheme-storage',
+    HealthMetrics= 'health-metrics-storage'
 }

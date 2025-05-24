@@ -27,6 +27,7 @@ export enum AppSettings {
     UseModelTemplate = 'useModelTemplate',
     ShowTokenPerSecond = 'showtokenpersecond',
     AutoLoadUser = 'autoloaduser',
+    HealthMetrics = 'healthmetrics',
 }
 
 /**
@@ -57,6 +58,7 @@ export const AppSettingsDefault: Record<AppSettings, boolean> = {
     [AppSettings.UseModelTemplate]: true,
     [AppSettings.ShowTokenPerSecond]: false,
     [AppSettings.AutoLoadUser]: true,
+    [AppSettings.HealthMetrics]: false,
 }
 
 export const CLAUDE_VERSION = '2023-06-01'
