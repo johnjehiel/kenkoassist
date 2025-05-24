@@ -87,6 +87,11 @@ const getPaths = (local: boolean): ButtonData[] => [
             icon: 'link',
           },
     {
+        name: 'Health Metrics',
+        path: '/screens/HealthMetricsMenu',
+        icon: 'hearto',
+    },
+    {
         name: 'TTS',
         path: '/screens/TTSMenu',
         icon: 'sound',
