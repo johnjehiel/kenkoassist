@@ -7,53 +7,26 @@ import { Permission, RecordType } from 'react-native-health-connect/lib/typescri
 import { TimeRangeFilter } from 'react-native-health-connect/lib/typescript/types/base.types';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
+import { Logger } from '@lib/state/Logger';
 
 // Define metrics to read and their extractors
 const METRICS: {
   type: RecordType;
   extract: (record: any) => number;
   key: string;
+  operation?: 'sum' | 'average';
 }[] = [
-  { type: 'Steps', extract: r => r.count ?? 0, key: 'steps' },
-  { type: 'Distance', extract: r => r.distance?.inMeters ?? 0, key: 'distance' },
-  // { type: 'FloorsClimbed', extract: r => r.floors ?? 0, key: 'floorsClimbed' },
-  { type: 'ActiveCaloriesBurned', extract: r => r.energy?.inKilocalories ?? 0, key: 'activeCalories' },
-  { type: 'TotalCaloriesBurned', extract: r => r.energy?.inKilocalories ?? 0, key: 'totalCalories' },
-  { type: 'HeartRate', extract: r => r.beatsPerMinute ?? 0, key: 'heartRate' },
-  // { type: 'RestingHeartRate', extract: r => r.beatsPerMinute ?? 0, key: 'restingHeartRate' },
-  // { type: 'HeartRateVariabilityRmssd', extract: r => r.heartRateVariabilityMillis ?? 0, key: 'heartRateVariability' },
-  { type: 'Weight', extract: r => r.weight?.inKilograms ?? 0, key: 'weight' },
-  { type: 'Height', extract: r => r.height?.inMeters ?? 0, key: 'height' },
-  // { type: 'BodyFat', extract: r => r.percentage ?? 0, key: 'bodyFat' },
-  { type: 'Hydration', extract: r => r.volume?.inLiters ?? 0, key: 'hydration' },
-  // { type: 'BoneMass', extract: r => r.mass?.inKilograms ?? 0, key: 'boneMass' },
-  // { type: 'LeanBodyMass', extract: r => r.mass?.inKilograms ?? 0, key: 'leanBodyMass' },
-  // { type: 'BodyWaterMass', extract: r => r.mass?.inKilograms ?? 0, key: 'bodyWaterMass' },
-  // { type: 'BloodGlucose', extract: r => r.level?.inMilligramsPerDeciliter ?? 0, key: 'bloodGlucose' },
-  { type: 'BloodPressure', extract: r => r.systolic?.inMillimetersOfMercury ?? 0, key: 'bloodPressureSystolic' },
-  { type: 'BloodPressure', extract: r => r.diastolic?.inMillimetersOfMercury ?? 0, key: 'bloodPressureDiastolic' },
-  { type: 'BodyTemperature', extract: r => r.temperature?.inCelsius ?? 0, key: 'bodyTemperature' },
-  // { type: 'BasalBodyTemperature', extract: r => r.temperature?.inCelsius ?? 0, key: 'basalBodyTemperature' },
-  { type: 'BasalMetabolicRate', extract: r => r.basalMetabolicRate?.inKilocaloriesPerDay ?? 0, key: 'basalMetabolicRate' },
-  // { type: 'Vo2Max', extract: r => r.vo2MillilitersPerMinuteKilogram ?? 0, key: 'vo2Max' },
-  { type: 'RespiratoryRate', extract: r => r.rate ?? 0, key: 'respiratoryRate' },
-  // { type: 'OxygenSaturation', extract: r => r.percentage ?? 0, key: 'oxygenSaturation' },
-  // { type: 'Power', extract: r => r.power?.inWatts ?? 0, key: 'power' },
-  // { type: 'Speed', extract: r => r.speed?.inMetersPerSecond ?? 0, key: 'speed' },
-  // { type: 'StepsCadence', extract: r => r.rate ?? 0, key: 'stepsCadence' },
-  // { type: 'CyclingPedalingCadence', extract: r => r.rate ?? 0, key: 'cyclingCadence' },
-  // { type: 'ElevationGained', extract: r => r.elevation?.inMeters ?? 0, key: 'elevationGained' },
-  // { type: 'WheelchairPushes', extract: r => r.count ?? 0, key: 'wheelchairPushes' },
-];
-
-// Session types
-const SESSION_TYPES: { type: RecordType; key: string }[] = [
-  { type: 'ExerciseSession', key: 'exerciseSessions' },
-  { type: 'SleepSession', key: 'sleepSessions' },
-  // { type: 'SexualActivity', key: 'sexualActivity' },
-  // { type: 'MenstruationPeriod', key: 'menstruationPeriods' },
-  // { type: 'CervicalMucus', key: 'cervicalMucus' },
-  // { type: 'OvulationTest', key: 'ovulationTest' }
+  { type: 'Steps', extract: r => r.count ?? 0, key: 'steps', operation: 'sum' },
+  { type: 'Distance', extract: r => r.distance?.inMeters ?? 0, key: 'distance', operation: 'sum' },
+  { type: 'TotalCaloriesBurned', extract: r => r.energy?.inKilocalories ?? 0, key: 'totalCalories' , operation: 'sum' },
+  { type: 'HeartRate', extract: r => r.beatsPerMinute ?? 0, key: 'heartRate', operation: 'average' },
+  { type: 'Weight', extract: r => r.weight?.inKilograms ?? 0, key: 'weight', operation: 'average' },
+  { type: 'Height', extract: r => r.height?.inMeters ?? 0, key: 'height', operation: 'average' },
+  { type: 'Hydration', extract: r => r.volume?.inLiters ?? 0, key: 'hydration', operation: 'sum' },
+  { type: 'BloodPressure', extract: r => r.systolic?.inMillimetersOfMercury ?? 0, key: 'bloodPressureSystolic', operation: 'average' },
+  { type: 'BloodPressure', extract: r => r.diastolic?.inMillimetersOfMercury ?? 0, key: 'bloodPressureDiastolic', operation: 'average' },
+  { type: 'BodyTemperature', extract: r => r.temperature?.inCelsius ?? 0, key: 'bodyTemperature', operation: 'average' },
+  { type: 'BasalMetabolicRate', extract: r => r.basalMetabolicRate?.inKilocaloriesPerDay ?? 0, key: 'basalMetabolicRate', operation: 'average' },
 ];
 
 type HealthData = Record<string, number | null>;
@@ -94,7 +67,6 @@ export default function useHealthData() {
   const getUniqueRecordTypes = useCallback((): RecordType[] => {
     const recordTypes = new Set<RecordType>();
     METRICS.forEach(m => recordTypes.add(m.type));
-    SESSION_TYPES.forEach(s => recordTypes.add(s.type));
     return Array.from(recordTypes);
   }, []);
 
@@ -129,10 +101,10 @@ export default function useHealthData() {
       if (!isMountedRef.current) return;
       
       setPermissions(granted);
-      console.log('Health Connect permissions granted:', granted.length);
+      Logger.info(`Health Connect permissions granted: ${granted.length}`);
       
     } catch (err) {
-      console.error('Health Connect initialization error:', err);
+      Logger.error(`Health Connect initialization error: ${err}`);
       if (isMountedRef.current) {
         setError(err instanceof Error ? err.message : 'Unknown initialization error');
       }
@@ -153,18 +125,32 @@ export default function useHealthData() {
     }
   }, [initializeHealthConnect]);
 
+  const performRound = (value: number, key: string): number | null => {
+    if (value <= 0) return null;
+    switch (key) {
+      case 'steps':
+      case 'heartRate':
+      case 'bloodPressureSystolic':
+      case 'bloodPressureDiastolic':
+        return Math.round(value); // Round to nearest integer for these metrics
+      default:
+        return value; // Return as is for others
+    }
+  }
+
   // Helper function with proper error handling and timeout
   const readMetricSafely = useCallback(async (
     type: RecordType, 
     extract: (record: any) => number, 
     key: string,
+    operation: 'sum' | 'average' | undefined,
     filter: TimeRangeFilter,
     permissions: Permission[],
     signal?: AbortSignal
   ): Promise<{ key: string; value: number | null }> => {
     const hasRead = permissions.some(p => p.recordType === type && p.accessType === 'read');
     if (!hasRead) {
-      console.warn(`No read permission for ${type}`);
+      Logger.warn(`No read permission for ${type}`);
       return { key, value: null };
     }
 
@@ -194,51 +180,15 @@ export default function useHealthData() {
         const extracted = extract(rec);
         return acc + (extracted > 0 ? extracted : 0);
       }, 0);
-      
-      return { key, value: value > 0 ? value : null };
-    } catch (err) {
-      console.warn(`Error reading ${type}:`, err);
-      return { key, value: null };
-    }
-  }, []);
 
-  // Helper function for session counts with timeout
-  const readSessionSafely = useCallback(async (
-    type: RecordType, 
-    key: string,
-    filter: TimeRangeFilter,
-    permissions: Permission[],
-    signal?: AbortSignal
-  ): Promise<{ key: string; value: number | null }> => {
-    const hasRead = permissions.some(p => p.recordType === type && p.accessType === 'read');
-    if (!hasRead) {
-      return { key, value: null };
-    }
-
-    try {
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error(`Timeout reading ${type}`));
-        }, 10000);
-        
-        if (signal) {
-          signal.addEventListener('abort', () => {
-            clearTimeout(timeoutId);
-            reject(new Error(`Aborted reading ${type}`));
-          });
-        }
-      });
-
-      const readPromise = readRecords(type, { timeRangeFilter: filter });
-      const resp = await Promise.race([readPromise, timeoutPromise]);
-      
-      if (signal?.aborted) {
-        throw new Error(`Aborted reading ${type}`);
+      if (operation === 'average') {
+        const count = resp.records.length;
+        return { key, value: value > 0 && count > 0 ? performRound(value / count, key) : null };
       }
-
-      return { key, value: resp.records.length > 0 ? resp.records.length : null };
+      // Default to returning the sum if no operation specified
+      return { key, value: value > 0 ? performRound(value, key) : null };
     } catch (err) {
-      console.warn(`Error reading ${type}:`, err);
+      Logger.warn(`Error reading ${type}: ${err}`);
       return { key, value: null };
     }
   }, []);
@@ -289,30 +239,14 @@ export default function useHealthData() {
         if (signal.aborted || !isMountedRef.current) break;
         
         const batch = METRICS.slice(i, i + batchSize);
-        const batchPromises = batch.map(({ type, extract, key }) =>
-          readMetricSafely(type, extract, key, filter, permissions, signal)
+        const batchPromises = batch.map(({ type, extract, key, operation }) =>
+          readMetricSafely(type, extract, key, operation, filter, permissions, signal)
         );
         
         const batchResults = await Promise.all(batchPromises);
         results.push(...batchResults);
         
         // Small delay between batches to prevent overwhelming the binding
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // Process sessions in batches
-      for (let i = 0; i < SESSION_TYPES.length; i += batchSize) {
-        if (signal.aborted || !isMountedRef.current) break;
-        
-        const batch = SESSION_TYPES.slice(i, i + batchSize);
-        const batchPromises = batch.map(({ type, key }) =>
-          readSessionSafely(type, key, filter, permissions, signal)
-        );
-        
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
-        
-        // Small delay between batches
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
@@ -329,7 +263,7 @@ export default function useHealthData() {
       
     } catch (err) {
       if (!signal.aborted) {
-        console.error('Health data fetch error:', err);
+        Logger.error(`Health data fetch error: ${err}`);
         if (isMountedRef.current) {
           setError(err instanceof Error ? err.message : 'Unknown fetch error');
         }
@@ -341,7 +275,7 @@ export default function useHealthData() {
         setIsRefreshing(false);
       }
     }
-  }, [permissions, readMetricSafely, readSessionSafely]);
+  }, [permissions, readMetricSafely]);
 
   // Initial data fetch when permissions are available
   useEffect(() => {
@@ -353,7 +287,7 @@ export default function useHealthData() {
   // Refresh function with debouncing
   const refreshData = useCallback(() => {
     if (fetchStateRef.current.isFetching) {
-      console.log('Fetch already in progress, skipping refresh');
+      Logger.warn('Fetch already in progress, skipping refresh');
       return;
     }
     
@@ -361,11 +295,11 @@ export default function useHealthData() {
     fetchHealthData();
   }, [fetchHealthData]);
 
-  console.log('Health data:', Object.keys(data).length, 'metrics loaded');
+  Logger.debug(`Health data: ${Object.keys(data).length} metrics loaded`);
   
   return { 
     data, 
-    permissions, 
+    permissions,
     isLoading, 
     isRefreshing, 
     refreshData,
