@@ -57,23 +57,6 @@ export namespace Model {
         })
     }
 
-    export const linkModelExternal = async () => {
-        return getDocumentAsync({
-            copyToCacheDirectory: false,
-        }).then(async (result) => {
-            if (result.canceled) return
-            const file = result.assets[0]
-            Logger.infoToast('Importing file...')
-            if (!file) {
-                Logger.errorToast('File Invalid')
-                return
-            }
-
-            if (await createModelDataExternal(file.uri, file.name, true))
-                Logger.infoToast(`Model Imported Sucessfully!`)
-        })
-    }
-
     export const verifyModelList = async () => {
         let modelList = await db.query.model_data.findMany()
         const fileList = await getModelList()
@@ -104,18 +87,6 @@ export namespace Model {
             `${AppDirectory.ModelPath}${filename}`,
             deleteOnFailure
         )
-    }
-
-    export const createModelDataExternal = async (
-        newdir: string,
-        filename: string,
-        deleteOnFailure: boolean = false
-    ) => {
-        if (!filename) {
-            Logger.errorToast('Filename invalid, Import Failed')
-            return
-        }
-        return setModelDataInternal(filename, newdir, deleteOnFailure)
     }
 
     export const getModelListQuery = () => {
