@@ -73,9 +73,12 @@ const HealthMetricsWindow = () => {
     }, [refreshData, isEnabled, storeError, hookError, setError]);
 
     // Helper function to format metric value
-    const formatMetricValue = useCallback((value: number | null, unit: string): string => {
+    const formatMetricValue = useCallback((value: number | null, unit: string, label: string): string => {
         if (value === null || value === undefined || value < 0) return 'N/A';
-        const formatted = typeof value === 'number' ? value.toFixed(2) : String(value);
+
+        const formatted = (label === 'Steps' || label === 'Heart Rate' || label === 'BP Systolic' || label === 'BP Diastolic') ?
+            value.toString() : ((typeof value === 'number') ? 
+            value.toFixed(2) : String(value));
         return unit ? `${formatted} ${unit}` : formatted;
     }, []);
 
@@ -83,7 +86,7 @@ const HealthMetricsWindow = () => {
     const renderMetric = useCallback((metricKey: string, value: number | null) => {
         const label = labelMap[metricKey] || metricKey;
         const unit = unitsMap[metricKey] || '';
-        const formattedValue = formatMetricValue(value, unit);
+        const formattedValue = formatMetricValue(value, unit, label);
         
         return (
             <View 
