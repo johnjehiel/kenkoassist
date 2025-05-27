@@ -129,6 +129,7 @@ const constructReplaceStrings = (): string[] => {
         output.push(`${userName} :`)
         output.push(`${charName} :`)
     }
+    Logger.debug(`Constructed Stop Strings: ${[...stops, ...output].join(', ')}`)
     return [...stops, ...output]
 }
 

@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { mmkv, mmkvStorage } from '@lib/storage/MMKV'
+import { mmkvStorage } from '@lib/storage/MMKV'
 import { Storage } from '@lib/enums/Storage'
-import { AppSettings } from '@lib/constants/GlobalValues'
 import { Tokenizer } from '@lib/engine/Tokenizer'
 import { healthCategories, labelMap, unitsMap } from '@lib/constants/HealthMetricsData'
+import { Logger } from './Logger'
 
 // Health data interface matching the useHealthData hook
 interface HealthData {
@@ -77,7 +77,10 @@ const formatHealthData = (data: HealthData, timestamp: Date | string): Formatted
       if (value !== null && value !== undefined && value > 0) {
         const label = labelMap[metricKey] || metricKey;
         const unit = unitsMap[metricKey] || '';
-        const formattedValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+        // const formattedValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+        const formattedValue = (label === 'Steps' || label === 'Heart Rate' || label === 'BP Systolic' || label === 'BP Diastolic') ?
+            value.toString() : ((typeof value === 'number') ? 
+            value.toFixed(2) : String(value));
         
         categoryMetrics.push({
           name: label,
@@ -102,7 +105,7 @@ const formatHealthData = (data: HealthData, timestamp: Date | string): Formatted
     };
   }
   
-  let prompt = `\n\nUser Health Metrics Last Week (Last Updated: ${new Date(lastUpdated).toLocaleDateString()})\n\n`;
+  let prompt = `\n\nUser's Weekly Health Metrics Summary (Data from the past 7 days)\n\n`;
   
   const Categories = Object.entries(categories);
   
@@ -139,18 +142,18 @@ export namespace HealthMetrics {
           
           // Only update if feature is enabled
           if (!state.isEnabled) {
-            console.log('Health metrics feature is disabled, skipping data update');
+            Logger.info('Health metrics feature is disabled, skipping data update');
             return;
           }
 
           const normalizedTimestamp = normalizeTimestamp(timestamp);
           const formatted = formatHealthData(healthData, normalizedTimestamp);
           
-          console.log("Health metrics data updated:", {
+          Logger.debug(`Health metrics data updated: ${JSON.stringify({
             metricsCount: Object.keys(healthData).length,
             categoriesCount: Object.keys(formatted.categories).length,
             lastUpdated: normalizedTimestamp
-          });
+          })}`);
           
           // Clear cache when data is updated to force recalculation
           set({
@@ -163,7 +166,7 @@ export namespace HealthMetrics {
         },
 
         clearData: () => {
-          console.log('Clearing health metrics data');
+          Logger.info('Clearing health metrics data');
           set({
             data: {},
             formattedData: null,
@@ -175,7 +178,7 @@ export namespace HealthMetrics {
 
         setEnabled: (enabled: boolean) => {
           const state = get();
-          console.log(`Health metrics feature ${enabled ? 'enabled' : 'disabled'}`);
+          Logger.info(`Health metrics feature ${enabled ? 'enabled' : 'disabled'}`);
           
           set({ isEnabled: enabled });
           
@@ -222,7 +225,7 @@ export namespace HealthMetrics {
             set((currentState) => ({ ...currentState, tokenCache: newCache }));
             return newCache;
           } catch (err) {
-            console.error('Failed to calculate token count:', err);
+            Logger.error(`Failed to calculate token count: ${err}`);
             const fallbackCache: HealthMetricsTokenCache = {
               lastUpdated: state.lastUpdated,
               formattedData_length: 0
