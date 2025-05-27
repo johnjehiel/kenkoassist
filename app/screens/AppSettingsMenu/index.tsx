@@ -11,6 +11,7 @@ import ScreenSettings from './ScreenSettings'
 import SecuritySettings from './SecuritySettings'
 import StyleSettings from './StyleSettings'
 import NotificationSettings from './NotificationSettings'
+import HealthMetricsSettings from './HealthMetricsSettings'
 
 import { AppSettings } from '@lib/constants/GlobalValues'
 import { useMMKVBoolean } from 'react-native-mmkv'
@@ -32,6 +33,7 @@ const AppSettingsMenu = () => {
             <StyleSettings />
             <ChatSettings />
             <CharacterSettings />
+            <HealthMetricsSettings />
             <NotificationSettings />
             <ScreenSettings />
             <SecuritySettings />
