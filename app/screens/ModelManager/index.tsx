@@ -15,10 +15,14 @@ import ModelEmpty from './ModelEmpty'
 import ModelItem from './ModelItem'
 import ModelNewMenu from './ModelNewMenu'
 import ModelSettings from './ModelSettings'
+import { useMMKVBoolean } from 'react-native-mmkv'
+import { AppSettings } from '@lib/constants/GlobalValues'
 
 const ModelManager = () => {
     const styles = useStyles()
     const { color } = Theme.useTheme()
+
+    const [devMode, _] = useMMKVBoolean(AppSettings.DevMode)
 
     const { data, updatedAt } = useLiveQuery(Model.getModelListQuery())
 
@@ -59,7 +63,7 @@ const ModelManager = () => {
                                     flexDirection: 'row',
                                 }}>
                                 <Text style={styles.subtitle}>Model Loaded: </Text>
-                                <Text style={styles.modelTitle} ellipsizeMode="tail">
+                                <Text style={styles.modelTitle} ellipsizeMode="tail" numberOfLines={1} >
                                     {modelName ? modelName : 'None'}
                                 </Text>
                             </View>
@@ -151,10 +155,13 @@ const ModelManager = () => {
                     exit={() => setShowSettings(false)}
                 />
             )}
-            <ThemedButton
-                label={showSettings ? 'Back To Models' : 'Show Settings'}
-                onPress={() => setShowSettings(!showSettings)}
-            />
+            {
+                (__DEV__ || devMode) &&
+                <ThemedButton
+                    label={showSettings ? 'Back To Models' : 'Show Settings'}
+                    onPress={() => setShowSettings(!showSettings)}
+                />
+            }
         </View>
     )
 }
@@ -191,6 +198,7 @@ export const useStyles = () => {
 
         modelTitle: {
             color: color.primary._700,
+            flex: 1,
         },
 
         subtitle: {
