@@ -16,7 +16,7 @@ const StyleSettings = () => {
     }))
 
     return (
-        <View style={{ rowGap: 8 }}>
+        <View style={{ rowGap: 8, marginBottom: 8 }}>
             <SectionTitle>Style</SectionTitle>
 
             <ThemedButton

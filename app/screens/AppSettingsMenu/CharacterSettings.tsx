@@ -7,7 +7,7 @@ import { View } from 'react-native'
 
 const CharacterSettings = () => {
     return (
-        <View style={{ rowGap: 8 }}>
+        <View style={{ rowGap: 8, marginBottom: 8 }}>
             <SectionTitle>Character Management</SectionTitle>
             <ThemedButton
                 label="Regenerate Default Card"
