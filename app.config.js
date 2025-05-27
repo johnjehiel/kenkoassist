@@ -5,7 +5,7 @@ module.exports = {
         name: IS_DEV ? 'KenkoAssist (DEV)' : 'KenkoAssist',
         newArchEnabled: true,
         slug: 'KenkoAssist',
-        version: '0.1.0',
+        version: '0.2.0',
         orientation: 'default',
         icon: './assets/images/icon.png',
         scheme: 'KenkoAssist',
