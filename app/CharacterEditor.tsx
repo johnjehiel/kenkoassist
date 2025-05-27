@@ -8,6 +8,7 @@ import HeaderTitle from '@components/views/HeaderTitle'
 import PopupMenu from '@components/views/PopupMenu'
 import { db } from '@db'
 import { AntDesign } from '@expo/vector-icons'
+import { AppSettings } from '@lib/constants/GlobalValues'
 import { Tokenizer } from '@lib/engine/Tokenizer'
 import { useViewerState } from '@lib/state/AvatarViewer'
 import { CharacterCardData, Characters } from '@lib/state/Characters'
@@ -23,6 +24,7 @@ import * as DocumentPicker from 'expo-document-picker'
 import { useNavigation, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { useMMKVBoolean } from 'react-native-mmkv'
 import { useShallow } from 'zustand/react/shallow'
 
 const ChracterEditor = () => {
@@ -30,6 +32,8 @@ const ChracterEditor = () => {
     const { color, spacing } = Theme.useTheme()
     const router = useRouter()
     const navigation = useNavigation()
+    const [devMode, _] = useMMKVBoolean(AppSettings.DevMode)
+
     const data = useLiveQuery(
         db
             .select({
@@ -281,10 +285,11 @@ const ChracterEditor = () => {
                             />
                         </View>
                     </View>
-
                     <ThemedTextInput
                         scrollEnabled
-                        label={`Description Tokens: ${getTokenCount(characterCard?.description ?? '')}`}
+                        label={(__DEV__ || devMode) ? 
+                            `Description Tokens: ${getTokenCount(characterCard?.description ?? '')}` : 
+                            'Description'}
                         multiline
                         numberOfLines={8}
                         onChangeText={(mes) => {
@@ -295,146 +300,149 @@ const ChracterEditor = () => {
                         }}
                         value={characterCard?.description}
                     />
+                    { (__DEV__ || devMode) && 
 
-                    <ThemedTextInput
-                        label="First Message"
-                        multiline
-                        onChangeText={(mes) => {
-                            setCharacterCardEdited({
-                                ...characterCard,
-                                first_mes: mes,
-                            })
-                        }}
-                        value={characterCard?.first_mes}
-                        numberOfLines={8}
-                    />
-
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                        }}>
-                        <Text style={{ color: color.text._100 }}>
-                            Alternate Greetings
-                            {characterCard.alternate_greetings.length !== 0 && (
-                                <Text
-                                    style={{
-                                        color: color.text._100,
-                                    }}>
-                                    {altSwipeIndex + 1} / {characterCard.alternate_greetings.length}
-                                </Text>
-                            )}
-                        </Text>
-
-                        <View style={{ flexDirection: 'row', columnGap: 32 }}>
-                            <TouchableOpacity onPress={handleDeleteAltMessage}>
-                                {characterCard.alternate_greetings.length !== 0 && (
-                                    <AntDesign color={color.error._400} name="delete" size={20} />
-                                )}
-                            </TouchableOpacity>
-                            {characterCard.alternate_greetings.length > 0 && (
-                                <TouchableOpacity
-                                    onPress={() =>
-                                        setAltSwipeIndex(Math.max(altSwipeIndex - 1, 0))
-                                    }>
-                                    <AntDesign
-                                        color={
-                                            altSwipeIndex === 0 ? color.text._700 : color.text._100
-                                        }
-                                        name="left"
-                                        size={20}
-                                    />
-                                </TouchableOpacity>
-                            )}
-                            {altSwipeIndex === characterCard.alternate_greetings.length - 1 ||
-                            characterCard.alternate_greetings.length === 0 ? (
-                                <TouchableOpacity onPress={handleAddAltMessage}>
-                                    <AntDesign color={color.text._100} name="plus" size={20} />
-                                </TouchableOpacity>
-                            ) : (
-                                <TouchableOpacity
-                                    onPress={() =>
-                                        setAltSwipeIndex(
-                                            Math.min(
-                                                altSwipeIndex + 1,
-                                                characterCard.alternate_greetings.length - 1
-                                            )
-                                        )
-                                    }>
-                                    <AntDesign color={color.text._100} name="right" size={20} />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </View>
-
-                    {characterCard.alternate_greetings.length !== 0 ? (
+                    <>
                         <ThemedTextInput
+                            label="First Message"
                             multiline
-                            numberOfLines={8}
                             onChangeText={(mes) => {
-                                const greetings = [...characterCard.alternate_greetings]
-                                greetings[altSwipeIndex].greeting = mes
                                 setCharacterCardEdited({
                                     ...characterCard,
-                                    alternate_greetings: greetings,
+                                    first_mes: mes,
                                 })
                             }}
-                            value={
-                                characterCard?.alternate_greetings?.[altSwipeIndex].greeting ?? ''
-                            }
+                            value={characterCard?.first_mes}
+                            numberOfLines={8}
                         />
-                    ) : (
-                        <Text
+
+                        <View
                             style={{
-                                borderColor: color.neutral._400,
-                                borderWidth: 1,
-                                borderRadius: 8,
-                                padding: spacing.m,
-                                color: color.text._500,
-                                fontStyle: 'italic',
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
                             }}>
-                            No Alternate Greetings
-                        </Text>
-                    )}
+                            <Text style={{ color: color.text._100 }}>
+                                Alternate Greetings
+                                {characterCard.alternate_greetings.length !== 0 && (
+                                    <Text
+                                        style={{
+                                            color: color.text._100,
+                                        }}>
+                                        {altSwipeIndex + 1} / {characterCard.alternate_greetings.length}
+                                    </Text>
+                                )}
+                            </Text>
 
-                    <ThemedTextInput
-                        label="Personality"
-                        multiline
-                        numberOfLines={2}
-                        onChangeText={(mes) => {
-                            setCharacterCardEdited({
-                                ...characterCard,
-                                personality: mes,
-                            })
-                        }}
-                        value={characterCard?.personality}
-                    />
+                            <View style={{ flexDirection: 'row', columnGap: 32 }}>
+                                <TouchableOpacity onPress={handleDeleteAltMessage}>
+                                    {characterCard.alternate_greetings.length !== 0 && (
+                                        <AntDesign color={color.error._400} name="delete" size={20} />
+                                    )}
+                                </TouchableOpacity>
+                                {characterCard.alternate_greetings.length > 0 && (
+                                    <TouchableOpacity
+                                        onPress={() =>
+                                            setAltSwipeIndex(Math.max(altSwipeIndex - 1, 0))
+                                        }>
+                                        <AntDesign
+                                            color={
+                                                altSwipeIndex === 0 ? color.text._700 : color.text._100
+                                            }
+                                            name="left"
+                                            size={20}
+                                        />
+                                    </TouchableOpacity>
+                                )}
+                                {altSwipeIndex === characterCard.alternate_greetings.length - 1 ||
+                                characterCard.alternate_greetings.length === 0 ? (
+                                    <TouchableOpacity onPress={handleAddAltMessage}>
+                                        <AntDesign color={color.text._100} name="plus" size={20} />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        onPress={() =>
+                                            setAltSwipeIndex(
+                                                Math.min(
+                                                    altSwipeIndex + 1,
+                                                    characterCard.alternate_greetings.length - 1
+                                                )
+                                            )
+                                        }>
+                                        <AntDesign color={color.text._100} name="right" size={20} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
 
-                    <ThemedTextInput
-                        label="Scenario"
-                        multiline
-                        onChangeText={(mes) => {
-                            setCharacterCardEdited({
-                                ...characterCard,
-                                scenario: mes,
-                            })
-                        }}
-                        value={characterCard?.scenario}
-                        numberOfLines={3}
-                    />
+                        {characterCard.alternate_greetings.length !== 0 ? (
+                            <ThemedTextInput
+                                multiline
+                                numberOfLines={8}
+                                onChangeText={(mes) => {
+                                    const greetings = [...characterCard.alternate_greetings]
+                                    greetings[altSwipeIndex].greeting = mes
+                                    setCharacterCardEdited({
+                                        ...characterCard,
+                                        alternate_greetings: greetings,
+                                    })
+                                }}
+                                value={
+                                    characterCard?.alternate_greetings?.[altSwipeIndex].greeting ?? ''
+                                }
+                            />
+                        ) : (
+                            <Text
+                                style={{
+                                    borderColor: color.neutral._400,
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    padding: spacing.m,
+                                    color: color.text._500,
+                                    fontStyle: 'italic',
+                                }}>
+                                No Alternate Greetings
+                            </Text>
+                        )}
 
-                    <ThemedTextInput
-                        label="Example Messages"
-                        multiline
-                        onChangeText={(mes) => {
-                            setCharacterCardEdited({
-                                ...characterCard,
-                                mes_example: mes,
-                            })
-                        }}
-                        value={characterCard?.mes_example}
-                        numberOfLines={8}
-                    />
+                        <ThemedTextInput
+                            label="Personality"
+                            multiline
+                            numberOfLines={2}
+                            onChangeText={(mes) => {
+                                setCharacterCardEdited({
+                                    ...characterCard,
+                                    personality: mes,
+                                })
+                            }}
+                            value={characterCard?.personality}
+                        />
+
+                        <ThemedTextInput
+                            label="Scenario"
+                            multiline
+                            onChangeText={(mes) => {
+                                setCharacterCardEdited({
+                                    ...characterCard,
+                                    scenario: mes,
+                                })
+                            }}
+                            value={characterCard?.scenario}
+                            numberOfLines={3}
+                        />
+
+                        <ThemedTextInput
+                            label="Example Messages"
+                            multiline
+                            onChangeText={(mes) => {
+                                setCharacterCardEdited({
+                                    ...characterCard,
+                                    mes_example: mes,
+                                })
+                            }}
+                            value={characterCard?.mes_example}
+                            numberOfLines={8}
+                        />
+                    </>}
 
                     <StringArrayEditor
                         label="Tags"
