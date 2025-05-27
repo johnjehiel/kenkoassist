@@ -370,6 +370,10 @@ export namespace Characters {
                 type: 'user' | 'character' = 'character'
             ) => {
                 const { data } = createBlankV2Card(name)
+                
+                if (type === 'character') {
+                    data.first_mes = `Hi, How can I help you?`;
+                }
 
                 const [{ id }, ..._] = await database
                     .insert(characters)
