@@ -8,18 +8,21 @@ import { mmkv } from '@lib/storage/MMKV'
 import { replaceMacros } from '@lib/utils/Macros'
 
 import { APIConfiguration, APIValues } from './APIBuilder.types'
+import { HealthMetrics } from '@lib/state/HealthMetrics'
 
-const getCardData = () => {
+const getData = () => {
     const userCard = { ...Characters.useUserCard.getState().card }
     const currentCard = { ...Characters.useCharacterCard.getState().card }
-    return { userCard, currentCard }
+    const healthMetrics = HealthMetrics.useHealthMetricsState.getState().formattedData?.prompt;
+    return { userCard, currentCard, healthMetrics }
 }
 
 const getCaches = (charName: string, userName: string) => {
     const characterCache = Characters.useCharacterCard.getState().getCache(userName)
     const userCache = Characters.useUserCard.getState().getCache(charName)
     const instructCache = Instructs.useInstruct.getState().getCache(charName, userName)
-    return { characterCache, userCache, instructCache }
+    const healthMetricsCache = HealthMetrics.useHealthMetricsState.getState().getCache()
+    return { characterCache, userCache, instructCache, healthMetricsCache }
 }
 
 export const buildTextCompletionContext = (max_length: number, printTimings = true) => {
@@ -30,13 +33,13 @@ export const buildTextCompletionContext = (max_length: number, printTimings = tr
 
     const currentInstruct = Instructs.useInstruct.getState().replacedMacros()
 
-    const { userCard, currentCard } = getCardData()
+    const { userCard, currentCard, healthMetrics } = getData()
     const userName = userCard?.name ?? ''
     const charName = currentCard?.name ?? ''
     const userCardData = (userCard?.description ?? '').trim()
     const charCardData = (currentCard?.description ?? '').trim()
 
-    const { characterCache, userCache, instructCache } = getCaches(charName, userName)
+    const { characterCache, userCache, instructCache, healthMetricsCache } = getCaches(charName, userName)
 
     let payload = ``
 
@@ -69,6 +72,10 @@ export const buildTextCompletionContext = (max_length: number, printTimings = tr
     if (userCardData) {
         payload += userCardData
         payload_length += userCache.description_length
+    }
+    if (healthMetrics) {
+        payload += healthMetrics
+        payload_length += healthMetricsCache.formattedData_length
     }
     // suffix must be delayed for example messages
     let message_acc = ``
@@ -192,11 +199,11 @@ export const buildChatCompletionContext = (
     const messages = [...(Chats.useChatState.getState().data?.messages ?? [])]
     const currentInstruct = Instructs.useInstruct.getState().replacedMacros()
 
-    const { userCard, currentCard } = getCardData()
+    const { userCard, currentCard, healthMetrics } = getData()
     const userName = userCard?.name ?? ''
     const charName = currentCard?.name ?? ''
 
-    const { characterCache, userCache, instructCache } = getCaches(charName, userName)
+    const { characterCache, userCache, instructCache, healthMetricsCache } = getCaches(charName, userName)
 
     const buffer = Chats.useChatState.getState().buffer
 
@@ -210,6 +217,11 @@ export const buildChatCompletionContext = (
         instructCache.system_prompt_length +
         characterCache.description_length +
         userCache.description_length
+
+    if (healthMetrics) {
+        initial += healthMetrics
+        total_length += healthMetricsCache.formattedData_length
+    }
 
     if (currentInstruct.scenario && currentCard?.scenario) {
         initial += currentCard.scenario
@@ -262,7 +274,7 @@ export const buildChatCompletionContext = (
 
     const output = [...payload, ...messageBuffer.reverse()]
     Logger.info(`Approximate Context Size: ${total_length} tokens`)
-    Logger.info(`${(performance.now() - delta).toFixed(2)}ms taken to build context`)
+    Logger.info(`${(performance.now() - delta).toFixed(2)}ms taken to build chat completion context`)
     if (mmkv.getBoolean(AppSettings.PrintContext)) Logger.info(JSON.stringify(output))
 
     return output
