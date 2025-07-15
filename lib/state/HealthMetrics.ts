@@ -11,6 +11,11 @@ interface HealthData {
   [key: string]: number | null;
 }
 
+// Daily health data structure
+interface DailyHealthData {
+  [date: string]: HealthData;
+}
+
 // Formatted health metrics for LLM context
 interface FormattedHealthMetrics {
   prompt: string;
@@ -26,18 +31,38 @@ interface FormattedHealthMetrics {
   };
 }
 
+// Formatted daily health metrics for LLM context
+interface FormattedDailyHealthMetrics {
+  prompt: string;
+  lastUpdated: string;
+  dailyData: {
+    [date: string]: {
+      [categoryName: string]: {
+        metrics: Array<{
+          name: string;
+          value: string;
+          unit: string;
+        }>;
+      };
+    };
+  };
+}
+
 // Token cache interface for health metrics
 interface HealthMetricsTokenCache {
   lastUpdated: string | null;
   formattedData_length: number;
+  formattedDailyData_length: number;
 }
 
 interface HealthMetricsStateProps {
   // Raw health data from the hook
   data: HealthData;
+  dailyData: DailyHealthData;
   
   // Formatted data ready for LLM context
   formattedData: FormattedHealthMetrics | null;
+  formattedDailyData: FormattedDailyHealthMetrics | null;
   
   // Token cache for context building
   tokenCache: HealthMetricsTokenCache | null;
@@ -48,7 +73,7 @@ interface HealthMetricsStateProps {
   error: string | null;
   
   // Actions
-  updateData: (healthData: HealthData, timestamp?: Date | string) => void;
+  updateData: (healthData: HealthData, dailyHealthData: DailyHealthData, timestamp?: Date | string) => void;
   clearData: () => void;
   setEnabled: (enabled: boolean) => void;
   setError: (error: string | null) => void;
@@ -61,6 +86,120 @@ const normalizeTimestamp = (timestamp: Date | string): string => {
     return timestamp;
   }
   return timestamp.toISOString();
+};
+
+// Helper function to format daily health data
+const formatDailyHealthData = (
+  dailyData: DailyHealthData, 
+  timestamp: Date | string
+): FormattedDailyHealthMetrics => {
+  const formattedDailyData: FormattedDailyHealthMetrics['dailyData'] = {};
+  const lastUpdated = normalizeTimestamp(timestamp);
+  
+  // Process each date
+  Object.entries(dailyData).forEach(([date, dayData]) => {
+    formattedDailyData[date] = {};
+    
+    // Process each category for this date
+    Object.entries(healthCategories).forEach(([categoryKey, categoryInfo]) => {
+      const categoryMetrics: Array<{name: string; value: string; unit: string}> = [];
+      
+      // Process each metric in this category
+      categoryInfo.metrics.forEach(metricKey => {
+        const value = dayData[metricKey];
+        if (value !== null && value !== undefined && value > 0) {
+          const label = labelMap[metricKey] || metricKey;
+          const unit = unitsMap[metricKey] || '';
+          
+          // Format the value appropriately (similar to formatHealthData)
+          let formattedValue;
+          if (label === 'Steps' || label === 'Heart Rate' || label === 'BP Systolic' || label === 'BP Diastolic' || label === 'Breathing Rate') {
+            formattedValue = Math.round(value).toString();
+          } else {
+            formattedValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+          }
+          
+          categoryMetrics.push({
+            name: label,
+            value: formattedValue,
+            unit
+          });
+        }
+      });
+      
+      // Only add the category if it has metrics
+      if (categoryMetrics.length > 0) {
+        formattedDailyData[date][categoryInfo.name] = {
+          metrics: categoryMetrics
+        };
+      }
+    });
+    
+    // Remove dates with no metrics
+    if (Object.keys(formattedDailyData[date]).length === 0) {
+      delete formattedDailyData[date];
+    }
+  });
+
+  // Build the prompt text
+  let prompt = `\n\nUser's Daily Health Metrics (Past 7 days)\n\n`;
+  
+  const sortedDates = Object.keys(formattedDailyData).sort();
+  
+  if (sortedDates.length === 0) {
+    return {
+      prompt: "No daily health metrics data available.",
+      lastUpdated,
+      dailyData: {}
+    };
+  }
+  
+  sortedDates.forEach(date => {
+    // Get the date object for comparison
+    const dateObj = new Date(date);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // Check if this date is today or yesterday
+    const isToday = dateObj.toDateString() === today.toDateString();
+    const isYesterday = dateObj.toDateString() === yesterday.toDateString();
+    
+    // Format the date and add the label if needed
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    let dateLabel = formattedDate;
+    if (isToday) {
+      dateLabel += " (Today)";
+    } else if (isYesterday) {
+      dateLabel += " (Yesterday)";
+    }
+    
+    prompt += `**${dateLabel}**\n\n`;
+    
+    Object.entries(formattedDailyData[date]).forEach(([categoryName, category]) => {
+      prompt += `${categoryName}:\n`;
+      category.metrics.forEach(metric => {
+        prompt += `- ${metric.name}: ${metric.value}${metric.unit ? ' ' + metric.unit : ''}\n`;
+      });
+      prompt += '\n';
+    });
+    
+    prompt += '\n';
+  });
+  
+  prompt += "Note: Use this daily health data contextually when relevant to user queries about health trends, patterns, or progress.";
+  
+  return {
+    prompt,
+    lastUpdated,
+    dailyData: formattedDailyData
+  };
 };
 
 // Helper function to format health data
@@ -131,13 +270,15 @@ export namespace HealthMetrics {
     persist(
       (set, get) => ({
         data: {},
+        dailyData: {},
         formattedData: null,
+        formattedDailyData: null,
         tokenCache: null,
         lastUpdated: null,
         isEnabled: false,
         error: null,
 
-        updateData: (healthData: HealthData, timestamp = new Date()) => {
+        updateData: (healthData: HealthData, dailyHealthData: DailyHealthData, timestamp = new Date()) => {
           const state = get();
           
           // Only update if feature is enabled
@@ -148,17 +289,21 @@ export namespace HealthMetrics {
 
           const normalizedTimestamp = normalizeTimestamp(timestamp);
           const formatted = formatHealthData(healthData, normalizedTimestamp);
+          const formattedDaily = formatDailyHealthData(dailyHealthData, normalizedTimestamp);
           
           Logger.debug(`Health metrics data updated: ${JSON.stringify({
             metricsCount: Object.keys(healthData).length,
             categoriesCount: Object.keys(formatted.categories).length,
+            daysCount: Object.keys(dailyHealthData).length,
             lastUpdated: normalizedTimestamp
           })}`);
           
           // Clear cache when data is updated to force recalculation
           set({
             data: healthData,
+            dailyData: dailyHealthData,
             formattedData: formatted,
+            formattedDailyData: formattedDaily,
             lastUpdated: normalizedTimestamp,
             tokenCache: null,
             error: null, // Clear any previous errors on successful update
@@ -169,7 +314,9 @@ export namespace HealthMetrics {
           Logger.info('Clearing health metrics data');
           set({
             data: {},
+            dailyData: {},
             formattedData: null,
+            formattedDailyData: null,
             lastUpdated: null,
             tokenCache: null,
             error: null,
@@ -202,10 +349,11 @@ export namespace HealthMetrics {
           }
 
           // If no data available, return empty cache
-          if (!state.formattedData || !state.lastUpdated) {
+          if (!state.formattedData || !state.formattedDailyData || !state.lastUpdated) {
             const emptyCache: HealthMetricsTokenCache = {
               lastUpdated: null,
-              formattedData_length: 0
+              formattedData_length: 0,
+              formattedDailyData_length: 0
             };
             set((currentState) => ({ ...currentState, tokenCache: emptyCache }));
             return emptyCache;
@@ -215,10 +363,12 @@ export namespace HealthMetrics {
           try {
             const getTokenCount = Tokenizer.getTokenizer();
             const formattedDataPrompt = state.formattedData.prompt;
+            const formattedDailyDataPrompt = state.formattedDailyData.prompt;
 
             const newCache: HealthMetricsTokenCache = {
               lastUpdated: state.lastUpdated,
               formattedData_length: getTokenCount(formattedDataPrompt),
+              formattedDailyData_length: getTokenCount(formattedDailyDataPrompt)
             };
 
             // Update the cache in state
@@ -228,7 +378,8 @@ export namespace HealthMetrics {
             Logger.error(`Failed to calculate token count: ${err}`);
             const fallbackCache: HealthMetricsTokenCache = {
               lastUpdated: state.lastUpdated,
-              formattedData_length: 0
+              formattedData_length: 0,
+              formattedDailyData_length: 0
             };
             set((currentState) => ({ ...currentState, tokenCache: fallbackCache }));
             return fallbackCache;
@@ -241,7 +392,9 @@ export namespace HealthMetrics {
         version: 1,
         partialize: (state) => ({
           data: state.data,
+          dailyData: state.dailyData,
           formattedData: state.formattedData,
+          formattedDailyData: state.formattedDailyData,
           lastUpdated: state.lastUpdated,
           isEnabled: state.isEnabled,
           error: state.error,

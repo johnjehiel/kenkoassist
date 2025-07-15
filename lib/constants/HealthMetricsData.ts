@@ -110,7 +110,7 @@ export const unitsMap: Record<string, string> = {
   elevationGained: 'm',
   wheelchairPushes: 'pushes',
   exerciseSessions: 'sessions',
-  sleepSessions: 'sessions',
+  sleepSessions: 'hours',
   sexualActivity: 'occurrences',
   menstruationPeriods: 'periods',
   intermenstrualBleeding: 'occurrences',

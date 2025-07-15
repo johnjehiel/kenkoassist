@@ -14,7 +14,12 @@ const getData = () => {
     const userCard = { ...Characters.useUserCard.getState().card }
     const currentCard = { ...Characters.useCharacterCard.getState().card }
     const healthMetrics = HealthMetrics.useHealthMetricsState.getState().formattedData?.prompt;
-    return { userCard, currentCard, healthMetrics }
+    const dailyHealthMetrics = HealthMetrics.useHealthMetricsState.getState().formattedDailyData?.prompt;
+    
+    // Choose which health metrics format to use - prefer daily data if available
+    const finalHealthMetrics = dailyHealthMetrics || healthMetrics;
+    
+    return { userCard, currentCard, healthMetrics: finalHealthMetrics }
 }
 
 const getCaches = (charName: string, userName: string) => {
@@ -22,7 +27,22 @@ const getCaches = (charName: string, userName: string) => {
     const userCache = Characters.useUserCard.getState().getCache(charName)
     const instructCache = Instructs.useInstruct.getState().getCache(charName, userName)
     const healthMetricsCache = HealthMetrics.useHealthMetricsState.getState().getCache()
-    return { characterCache, userCache, instructCache, healthMetricsCache }
+    
+    // Determine which token count to use from health metrics cache
+    // If formattedDailyData_length exists and is non-zero, use that, otherwise use formattedData_length
+    const healthMetricsTokenLength = healthMetricsCache.formattedDailyData_length > 0 
+        ? healthMetricsCache.formattedDailyData_length 
+        : healthMetricsCache.formattedData_length;
+    
+    return { 
+        characterCache, 
+        userCache, 
+        instructCache, 
+        healthMetricsCache: {
+            ...healthMetricsCache,
+            formattedData_length: healthMetricsTokenLength
+        } 
+    }
 }
 
 export const buildTextCompletionContext = (max_length: number, printTimings = true) => {

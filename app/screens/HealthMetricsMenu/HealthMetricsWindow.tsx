@@ -1,6 +1,6 @@
 import { Theme } from '@lib/theme/ThemeManager'
-import React, { useEffect, useMemo, useCallback } from 'react'
-import { Text, View, ActivityIndicator, Platform, Alert } from 'react-native';
+import React, { useEffect, useMemo, useCallback, useState } from 'react'
+import { Text, View, ActivityIndicator, Platform, Alert, TouchableOpacity } from 'react-native';
 
 import ThemedButton from '@components/buttons/ThemedButton'
 
@@ -11,6 +11,7 @@ import { healthCategories, labelMap, unitsMap } from '@lib/constants/HealthMetri
 const HealthMetricsWindow = () => {
     const { 
         data, 
+        dailyData,
         permissions, 
         isLoading, 
         isRefreshing, 
@@ -20,7 +21,8 @@ const HealthMetricsWindow = () => {
     } = useHealthData();
     
     const { 
-        data: storedData,   
+        data: storedData,
+        dailyData: storedDailyData,
         updateData, 
         lastUpdated: storeLastUpdated,
         isEnabled,
@@ -31,6 +33,9 @@ const HealthMetricsWindow = () => {
     
     const { spacing, color, fontSize } = Theme.useTheme();
 
+    // View mode state (daily or aggregate)
+    const [viewMode, setViewMode] = useState<'daily' | 'aggregate'>('daily');
+
     // Consolidated useEffect for all data management
     useEffect(() => {
         if (!isEnabled) {
@@ -39,20 +44,30 @@ const HealthMetricsWindow = () => {
         }
 
         // Update store when new data arrives
-        if (data && Object.keys(data).length > 0) {
-            updateData(data, lastUpdated);
+        if (data && dailyData && Object.keys(data).length > 0) {
+            updateData(data, dailyData, lastUpdated);
         }
 
         // Handle hook errors
         if (hookError) {
             setError(hookError);
         }
-    }, [isEnabled, data, lastUpdated, hookError, updateData, setError, clearData]);
+    }, [isEnabled, data, dailyData, lastUpdated, hookError, updateData, setError, clearData]);
 
     // Use stored data if available and feature enabled, otherwise hook data
     const displayData = useMemo(() => 
         isEnabled && Object.keys(storedData).length > 0 ? storedData : data
     , [storedData, data, isEnabled]);
+    
+    // Use stored daily data if available and feature enabled, otherwise hook daily data
+    const displayDailyData = useMemo(() => 
+        isEnabled && Object.keys(storedDailyData || {}).length > 0 ? storedDailyData : dailyData
+    , [storedDailyData, dailyData, isEnabled]);
+    
+    // Get sorted dates for daily data display
+    const sortedDates = useMemo(() => 
+        Object.keys(displayDailyData || {}).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    , [displayDailyData]);
 
     const handleRefresh = useCallback(() => {
         if (!isEnabled) {
@@ -76,7 +91,7 @@ const HealthMetricsWindow = () => {
     const formatMetricValue = useCallback((value: number | null, unit: string, label: string): string => {
         if (value === null || value === undefined || value < 0) return 'N/A';
 
-        const formatted = (label === 'Steps' || label === 'Heart Rate' || label === 'BP Systolic' || label === 'BP Diastolic') ?
+        const formatted = (label === 'Steps' || label === 'Heart Rate' || label === 'BP Systolic' || label === 'BP Diastolic' || label == 'Breathing Rate') ?
             value.toString() : ((typeof value === 'number') ? 
             value.toFixed(2) : String(value));
         return unit ? `${formatted} ${unit}` : formatted;
@@ -132,30 +147,14 @@ const HealthMetricsWindow = () => {
 
         return (
             <View key={categoryKey} style={{ marginBottom: spacing.m }}>
-                <View style={{ 
-                    flexDirection: 'row', 
-                    alignItems: 'center', 
-                    marginBottom: spacing.sm,
-                    paddingBottom: spacing.xs,
-                    borderBottomWidth: 1,
-                    borderBottomColor: color.primary._100
+                <Text style={{
+                    fontSize: fontSize.l,
+                    fontWeight: 'bold',
+                    color: color.text._100,
+                    marginBottom: spacing.xs
                 }}>
-                    <View style={{
-                        width: 4,
-                        height: 20,
-                        backgroundColor: color.text._200,
-                        marginRight: spacing.sm,
-                        borderRadius: 2
-                    }} />
-                    <Text style={{ 
-                        color: color.text._400, 
-                        fontSize: fontSize.m,
-                        fontWeight: '700',
-                        flex: 1
-                    }}>
-                        {categoryInfo.name}
-                    </Text>
-                </View>
+                    {categoryInfo.name}
+                </Text>
 
                 {categoryMetrics.map((metricKey: string) => 
                     renderMetric(metricKey, displayData[metricKey])
@@ -163,6 +162,100 @@ const HealthMetricsWindow = () => {
             </View>
         );
     }, [displayData, renderMetric, spacing, color, fontSize]);
+    
+    // Render daily metrics for a specific date
+    const renderDailyMetrics = useCallback((date: string) => {
+        const dateData = displayDailyData?.[date];
+        if (!dateData) return null;
+        
+        // Find metrics that have data for this day
+        const availableMetrics = Object.keys(dateData).filter(key => 
+            dateData[key] !== null && 
+            dateData[key] !== undefined && 
+            dateData[key] > 0
+        );
+        
+        if (availableMetrics.length === 0) return null;
+        
+        const formattedDate = new Date(date).toLocaleDateString('en-US', { 
+            weekday: 'long',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        return (
+            <View key={date} style={{ 
+                marginBottom: spacing.m,
+                backgroundColor: color.primary._100,
+                borderRadius: 8,
+                padding: spacing.sm
+            }}>
+                <Text style={{
+                    fontSize: fontSize.l,
+                    fontWeight: 'bold',
+                    color: color.text._100,
+                    marginBottom: spacing.sm,
+                    textAlign: 'center'
+                }}>
+                    {formattedDate}
+                </Text>
+                
+                {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) => {
+                    // Filter metrics in this category that have data for this day
+                    const categoryMetrics = categoryInfo.metrics.filter(metricKey => 
+                        dateData[metricKey] !== null && 
+                        dateData[metricKey] !== undefined && 
+                        dateData[metricKey] > 0
+                    );
+                    
+                    if (categoryMetrics.length === 0) return null;
+                    
+                    return (
+                        <View key={categoryKey} style={{ marginBottom: spacing.xs }}>
+                            <Text style={{
+                                fontSize: fontSize.m,
+                                fontWeight: 'bold',
+                                color: color.text._100,
+                                marginBottom: spacing.xs / 2
+                            }}>
+                                {categoryInfo.name}
+                            </Text>
+                            
+                            {categoryMetrics.map(metricKey => {
+                                const value = dateData[metricKey];
+                                const label = labelMap[metricKey] || metricKey;
+                                const unit = unitsMap[metricKey] || '';
+                                const formattedValue = formatMetricValue(value, unit, label);
+                                
+                                return (
+                                    <View 
+                                        key={metricKey}
+                                        style={{
+                                            flexDirection: 'row',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            paddingVertical: spacing.xs / 2,
+                                            paddingHorizontal: spacing.sm,
+                                            backgroundColor: color.primary._100,
+                                            borderRadius: 8,
+                                            marginVertical: spacing.xs / 4,
+                                        }}
+                                    >
+                                        <Text style={{ fontSize: fontSize.s, color: color.text._100 }}>
+                                            {label}
+                                        </Text>
+                                        <Text style={{ fontSize: fontSize.s, fontWeight: 'bold', color: color.text._100 }}>
+                                            {formattedValue}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    );
+                })}
+            </View>
+        );
+    }, [displayDailyData, spacing, color, fontSize, formatMetricValue]);
 
     // Early returns for different states
     if (!isEnabled) {
@@ -286,16 +379,85 @@ const HealthMetricsWindow = () => {
                         fontWeight: '700',
                         textAlign: 'center'
                     }}>
-                        Weekly Summary
+                        Health Metrics
                     </Text>
+            </View>
+            
+            {/* Tab buttons to switch between daily and aggregate views */}
+            <View style={{ 
+                flexDirection: 'row', 
+                backgroundColor: color.neutral._100,
+                borderRadius: 8,
+                marginVertical: spacing.xs
+            }}>
+                <TouchableOpacity
+                    style={{ 
+                        flex: 1,
+                        padding: spacing.sm,
+                        backgroundColor: viewMode === 'daily' ? color.primary._300 : 'transparent',
+                        borderRadius: 8,
+                        alignItems: 'center'
+                    }}
+                    onPress={() => setViewMode('daily')}
+                >
+                    <Text style={{ 
+                        fontSize: fontSize.m,
+                        fontWeight: viewMode === 'daily' ? 'bold' : 'normal',
+                        color: viewMode === 'daily' ? color.text._900 : color.text._100
+                    }}>
+                        Daily View
+                    </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                    style={{ 
+                        flex: 1,
+                        padding: spacing.sm,
+                        backgroundColor: viewMode === 'aggregate' ? color.primary._300 : 'transparent',
+                        borderRadius: 8,
+                        alignItems: 'center'
+                    }}
+                    onPress={() => setViewMode('aggregate')}
+                >
+                    <Text style={{ 
+                        fontSize: fontSize.m,
+                        fontWeight: viewMode === 'aggregate' ? 'bold' : 'normal',
+                        color: viewMode === 'aggregate' ? color.text._900 : color.text._100
+                    }}>
+                        7-Day Summary
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             {hasData ? (
-                <View style={{ paddingBottom: spacing.xs }}>
-                    {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) => 
-                        renderCategory(categoryKey, categoryInfo)
-                    )}
-                </View>
+                viewMode === 'daily' ? (
+                    // Daily metrics view
+                    <View style={{ paddingBottom: spacing.xs }}>
+                        {sortedDates.length > 0 ? (
+                            sortedDates.map(date => renderDailyMetrics(date))
+                        ) : (
+                            <View style={{
+                                alignItems: 'center',
+                                paddingVertical: spacing.xl
+                            }}>
+                                <Text style={{ 
+                                    color: color.text._300, 
+                                    fontSize: fontSize.m,
+                                    textAlign: 'center'
+                                }}>
+                                    No daily health metrics available.
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                ) : (
+                    // Aggregate metrics view
+                    <View style={{ paddingBottom: spacing.xs }}>
+                        {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) => 
+                            renderCategory(categoryKey, categoryInfo)
+                        )}
+                    </View>
+                )
             ) : (
                 <View style={{
                     alignItems: 'center',
