@@ -8,6 +8,7 @@ import { TimeRangeFilter } from 'react-native-health-connect/lib/typescript/type
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { Logger } from '@lib/state/Logger';
+import { testDailyData_BP_fluctuations, testDailyData_BP_fluctuations_aggregate, testDailyData_sleep, testDailyData_sleep_aggregate } from '@lib/constants/TestData';
 
 // Define metrics to read and their extractors
 // const METRICS: {
@@ -388,65 +389,14 @@ export default function useHealthData() {
         });
       });
 
-      // const tempDailyData = {
-      //   "2025-07-09": {
-      //     "sleepSessions": 7.8,
-      //     "heartRate": 62,
-      //     "respiratoryRate": 15,
-      //     "totalCalories": 2300,
-      //     "hydration": 2.5
-      //   },
-      //   "2025-07-10": {
-      //     "sleepSessions": 7.5,
-      //     "heartRate": 60,
-      //     "respiratoryRate": 14,
-      //     "totalCalories": 2250,
-      //     "hydration": 2.4
-      //   },
-      //   "2025-07-11": {
-      //     "sleepSessions": 4.0,
-      //     "heartRate": 75,
-      //     "respiratoryRate": 19,
-      //     "totalCalories": 2800,
-      //     "hydration": 1.0
-      //   },
-      //   "2025-07-12": {
-      //     "sleepSessions": 5.2,
-      //     "heartRate": 72,
-      //     "respiratoryRate": 18,
-      //     "totalCalories": 2750,
-      //     "hydration": 1.2
-      //   },
-      //   "2025-07-13": {
-      //     "sleepSessions": 4.5,
-      //     "heartRate": 78,
-      //     "respiratoryRate": 20,
-      //     "totalCalories": 2900,
-      //     "hydration": 0.8
-      //   },
-      //   "2025-07-14": {
-      //     "sleepSessions": 5.0,
-      //     "heartRate": 70,
-      //     "respiratoryRate": 17,
-      //     "totalCalories": 2600,
-      //     "hydration": 1.5
-      //   },
-      //   "2025-07-15": {
-      //     "sleepSessions": 6.1,
-      //     "heartRate": 68,
-      //     "respiratoryRate": 16,
-      //     "totalCalories": 2400,
-      //     "hydration": 2.0
-      //   }
-      // }
+      setDailyData(testDailyData_sleep); // for testing purposes
+      setAggregatedData(testDailyData_sleep_aggregate); // for testing purposes
 
-      // setDailyData(tempDailyData);
+      Logger.debug(`Daily Health Data: ${testDailyData_sleep}`);
+      Logger.debug(`Aggregated Health Data: ${testDailyData_sleep_aggregate}`);
 
-      console.log('Daily Health Data:', dailyHealthData);
-      console.log('Aggregated Health Data:', aggregatedHealthData);
-
-      setDailyData(dailyHealthData);
-      setAggregatedData(aggregatedHealthData);
+      // setDailyData(dailyHealthData);
+      // setAggregatedData(aggregatedHealthData);
       setLastUpdated(new Date());
       
     } catch (err) {
