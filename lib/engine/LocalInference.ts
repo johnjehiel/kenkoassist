@@ -106,7 +106,7 @@ const buildLocalPayload = async () => {
 
 const constructStopSequence = (): string[] => {
     const instruct = Instructs.useInstruct.getState().replacedMacros()
-    const sequence: string[] = ['<|eot_id|>']
+    const sequence: string[] = ['<|eot_id|>', '<end_of_turn>', '<|end|>'] // llama, gemma, phi
     if (instruct.stop_sequence !== '')
         instruct.stop_sequence.split(',').forEach((item) => item !== '' && sequence.push(item))
     return sequence

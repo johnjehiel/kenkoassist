@@ -10,6 +10,7 @@ import PopupMenu from '@components/views/PopupMenu'
 import TextBoxModal from '@components/views/TextBoxModal'
 import { Samplers } from '@lib/constants/SamplerData'
 import { APISampler } from '@lib/engine/API/APIBuilder.types'
+import { APIState as APIStateNew } from '@lib/engine/API/APIManagerState'
 import { localSamplerData } from '@lib/engine/LocalInference'
 import { useAppMode } from '@lib/state/AppMode'
 import { Logger } from '@lib/state/Logger'
@@ -34,8 +35,21 @@ const SamplerMenu = () => {
         configList,
     } = SamplersManager.useSamplers()
 
+    const { apiValues, activeIndex, getTemplates } = APIStateNew.useAPIState((state) => ({
+        apiValues: state.values,
+        activeIndex: state.activeIndex,
+        getTemplates: state.getTemplates,
+    }))
+
     const getSamplerList = (): APISampler[] => {
         if (appMode === 'local') return localSamplerData
+        if (activeIndex !== -1) {
+            const template = getTemplates().find(
+                (item) => item.name === apiValues[activeIndex].configName
+            )
+            if (!template) return []
+            return template.request.samplerFields
+        }
         return []
     }
 

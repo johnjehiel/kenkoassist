@@ -5,6 +5,7 @@ import appConfig from 'app.config'
 import { Text, View } from 'react-native'
 import { useMMKVBoolean } from 'react-native-mmkv'
 
+import AppModeToggle from './AppModeToggle'
 import UserInfo from './UserInfo'
 import RouteList from './RouteList'
 
@@ -20,6 +21,7 @@ const SettingsDrawer = () => {
                 paddingBottom: spacing.xl2,
             }}>
             <UserInfo />
+            <AppModeToggle />
             <RouteList />
             <Text
                 style={{

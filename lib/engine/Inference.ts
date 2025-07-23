@@ -4,6 +4,7 @@ import BackgroundService from 'react-native-background-actions'
 
 import { Characters } from '../state/Characters'
 import { Logger } from '../state/Logger'
+import { buildAndSendRequest } from './API/APIBuilder'
 import { localInference } from './LocalInference'
 
 export const regenerateResponse = async (swipeId: number, regenCache: boolean = true) => {
@@ -67,6 +68,8 @@ export const generateResponse = async (swipeId: number) => {
 
     if (appMode === 'local') {
         await BackgroundService.start(localInference, completionTaskOptions)
+    } else {
+        await BackgroundService.start(buildAndSendRequest, completionTaskOptions)
     }
 
     Logger.debug(`Time taken for generateResponse(): ${(performance.now() - data).toFixed(2)}ms`)
