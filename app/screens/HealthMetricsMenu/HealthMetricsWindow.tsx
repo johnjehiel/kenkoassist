@@ -3,10 +3,20 @@ import React, { useEffect, useMemo, useCallback, useState } from 'react'
 import { Text, View, ActivityIndicator, Platform, Alert, TouchableOpacity } from 'react-native';
 
 import ThemedButton from '@components/buttons/ThemedButton'
+import DropdownSheet from '@components/input/DropdownSheet';
 
 import useHealthData from '@lib/hooks/useHealthData'
 import { HealthMetrics } from '@lib/state/HealthMetrics'
 import { healthCategories, labelMap, unitsMap } from '@lib/constants/HealthMetricsData';
+
+const TEST_DATA_CATEGORIES = [
+    { id: 'sleep', label: 'Sleep' },
+    { id: 'training', label: 'Training' },
+    { id: 'bp', label: 'Blood Pressure' },
+    { id: 'glucose', label: 'Glucose' },
+    { id: 'oxygen', label: 'Oxygen' },
+    { id: 'api', label: 'default' },
+];
 
 const HealthMetricsWindow = () => {
     const { 
@@ -35,6 +45,7 @@ const HealthMetricsWindow = () => {
 
     // View mode state (daily or aggregate)
     const [viewMode, setViewMode] = useState<'daily' | 'aggregate'>('daily');
+    const [testDataCategory, setTestDataCategory] = useState<'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'>('sleep');
 
     // Consolidated useEffect for all data management
     useEffect(() => {
@@ -69,7 +80,12 @@ const HealthMetricsWindow = () => {
         Object.keys(displayDailyData || {}).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
     , [displayDailyData]);
 
-    const handleRefresh = useCallback(() => {
+    // Find the currently selected test data category object
+    const selectedCategory = useMemo(() => 
+        TEST_DATA_CATEGORIES.find(cat => cat.id === testDataCategory) || TEST_DATA_CATEGORIES[0]
+    , [testDataCategory]);
+
+    const handleRefresh = useCallback((category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => {
         if (!isEnabled) {
             Alert.alert(
                 'Feature Disabled',
@@ -84,7 +100,7 @@ const HealthMetricsWindow = () => {
             setError(null);
         }
         
-        refreshData();
+        refreshData(category);
     }, [refreshData, isEnabled, storeError, hookError, setError]);
 
     // Helper function to format metric value
@@ -352,7 +368,7 @@ const HealthMetricsWindow = () => {
 
                 <ThemedButton
                     label={isRefreshing ? 'Retrying...' : 'Retry'}
-                    onPress={handleRefresh} 
+                    onPress={() => handleRefresh(testDataCategory)} 
                     iconName="reload1"
                     disabled={isRefreshing}
                 />
@@ -381,6 +397,31 @@ const HealthMetricsWindow = () => {
                     }}>
                         Health Metrics
                     </Text>
+            </View>
+
+            {/* Test Data Category Selector */}
+            <View style={{
+                backgroundColor: color.neutral._100,
+                borderRadius: 8,
+                padding: spacing.sm,
+                marginVertical: spacing.xs,
+                marginTop: spacing.l
+            }}>
+                <DropdownSheet
+                    data={TEST_DATA_CATEGORIES}
+                    selected={selectedCategory}
+                    onChangeValue={(category) => {
+                        setTestDataCategory(category.id as 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api');
+                        handleRefresh(category.id as 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api');
+                    }}
+                    labelExtractor={(item) => item.label}
+                    placeholder="Select Data"
+                    modalTitle="Select Data"
+                    style={{
+                        backgroundColor: color.primary._100,
+                        borderRadius: 8,
+                    }}
+                />
             </View>
             
             {/* Tab buttons to switch between daily and aggregate views */}
@@ -513,7 +554,7 @@ const HealthMetricsWindow = () => {
 
             <ThemedButton
                 label={isRefreshing ? 'Refreshing...' : 'Refresh'}
-                onPress={handleRefresh} 
+                onPress={() => handleRefresh(testDataCategory)} 
                 iconName="reload1"
                 disabled={isRefreshing}
             />

@@ -8,7 +8,7 @@ import { TimeRangeFilter } from 'react-native-health-connect/lib/typescript/type
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { Logger } from '@lib/state/Logger';
-import { testDailyData_BP_fluctuations, testDailyData_BP_fluctuations_aggregate, testDailyData_sleep, testDailyData_sleep_aggregate } from '@lib/constants/TestData';
+import { testDailyData_blood_glucose, testDailyData_blood_glucose_aggregate, testDailyData_BP_fluctuations, testDailyData_BP_fluctuations_aggregate, testDailyData_oxygen_saturation, testDailyData_oxygen_saturation_aggregate, testDailyData_sleep, testDailyData_sleep_aggregate, testDailyData_training, testDailyData_training_aggregate } from '@lib/constants/TestData';
 
 // Define metrics to read and their extractors
 // const METRICS: {
@@ -313,7 +313,41 @@ export default function useHealthData() {
     }
   }, []);
 
-  const fetchHealthData = useCallback(async () => {
+  const fetchHealthData = useCallback(async (testDataCategory: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => {
+    
+    if (testDataCategory != 'api') {
+      // Use test data based on the selected category
+      switch (testDataCategory) {
+        case 'sleep':
+          setDailyData(testDailyData_sleep);
+          setAggregatedData(testDailyData_sleep_aggregate);
+          Logger.debug('Using sleep test data');
+          break;
+        case 'training':
+          setDailyData(testDailyData_training);
+          setAggregatedData(testDailyData_training_aggregate);
+          Logger.debug('Using training test data');
+          break;
+        case 'bp':
+          setDailyData(testDailyData_BP_fluctuations);
+          setAggregatedData(testDailyData_BP_fluctuations_aggregate);
+          Logger.debug('Using BP fluctuations test data');
+          break;
+        case 'glucose':
+          setDailyData(testDailyData_blood_glucose);
+          setAggregatedData(testDailyData_blood_glucose_aggregate);
+          Logger.debug('Using blood glucose test data');
+          break;
+        case 'oxygen':
+          setDailyData(testDailyData_oxygen_saturation);
+          setAggregatedData(testDailyData_oxygen_saturation_aggregate);
+          Logger.debug('Using oxygen saturation test data');
+          break;
+      }
+      return ;
+    }
+
+    // If not using test data, proceed with fetching from Health Connect
     if (Platform.OS !== 'android' || permissions.length === 0) {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -389,14 +423,14 @@ export default function useHealthData() {
         });
       });
 
-      setDailyData(testDailyData_sleep); // for testing purposes
-      setAggregatedData(testDailyData_sleep_aggregate); // for testing purposes
+      // setDailyData(testDailyData_sleep); // for testing purposes
+      // setAggregatedData(testDailyData_sleep_aggregate); // for testing purposes
 
       Logger.debug(`Daily Health Data: ${testDailyData_sleep}`);
       Logger.debug(`Aggregated Health Data: ${testDailyData_sleep_aggregate}`);
 
-      // setDailyData(dailyHealthData);
-      // setAggregatedData(aggregatedHealthData);
+      setDailyData(dailyHealthData);
+      setAggregatedData(aggregatedHealthData);
       setLastUpdated(new Date());
       
     } catch (err) {
@@ -418,19 +452,19 @@ export default function useHealthData() {
   // Initial data fetch when permissions are available
   useEffect(() => {
     if (permissions.length > 0 && !fetchStateRef.current.isFetching) {
-      fetchHealthData();
+      fetchHealthData('sleep'); // Default to 'api' to fetch all data
     }
   }, [permissions, fetchHealthData]);
 
   // Refresh function with debouncing
-  const refreshData = useCallback(() => {
+  const refreshData = useCallback((testDataCategory: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => {
     if (fetchStateRef.current.isFetching) {
       Logger.warn('Fetch already in progress, skipping refresh');
       return;
     }
     
     setIsRefreshing(true);
-    fetchHealthData();
+    fetchHealthData(testDataCategory);
   }, [fetchHealthData]);
 
   Logger.debug(`Health data: ${Object.keys(dailyData).length} daily entries, ${Object.keys(aggregatedData).length} metrics loaded`);
