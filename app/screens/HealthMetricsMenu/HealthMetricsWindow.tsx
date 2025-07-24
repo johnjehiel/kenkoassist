@@ -15,7 +15,7 @@ const TEST_DATA_CATEGORIES = [
     { id: 'bp', label: 'Blood Pressure' },
     { id: 'glucose', label: 'Glucose' },
     { id: 'oxygen', label: 'Oxygen' },
-    { id: 'api', label: 'default' },
+    { id: 'api', label: 'Default' },
 ];
 
 const HealthMetricsWindow = () => {
@@ -38,14 +38,33 @@ const HealthMetricsWindow = () => {
         isEnabled,
         error: storeError,
         setError,
-        clearData
+        clearData,
+        selectedCategory: storedCategory,
+        setSelectedCategory
     } = HealthMetrics.useHealthMetricsState();
     
     const { spacing, color, fontSize } = Theme.useTheme();
 
     // View mode state (daily or aggregate)
     const [viewMode, setViewMode] = useState<'daily' | 'aggregate'>('daily');
-    const [testDataCategory, setTestDataCategory] = useState<'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'>('sleep');
+    
+    // Use stored category with fallback to 'sleep'
+    const [testDataCategory, setLocalTestDataCategory] = useState<'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'>(
+        storedCategory || 'sleep'
+    );
+    
+    // Sync with stored category if it changes
+    useEffect(() => {
+        if (storedCategory && testDataCategory !== storedCategory) {
+            setLocalTestDataCategory(storedCategory);
+        }
+    }, [storedCategory]);
+
+    // Update both local and global state
+    const setTestDataCategory = useCallback((category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => {
+        setLocalTestDataCategory(category);
+        setSelectedCategory(category);
+    }, [setSelectedCategory]);
 
     // Consolidated useEffect for all data management
     useEffect(() => {
@@ -64,6 +83,13 @@ const HealthMetricsWindow = () => {
             setError(hookError);
         }
     }, [isEnabled, data, dailyData, lastUpdated, hookError, updateData, setError, clearData]);
+
+    // Update initial data fetch to use the stored category
+    useEffect(() => {
+        if (isEnabled && permissions.length > 0 && !isLoading && !isRefreshing) {
+            refreshData(testDataCategory);
+        }
+    }, [isEnabled, permissions.length, refreshData, testDataCategory]);
 
     // Use stored data if available and feature enabled, otherwise hook data
     const displayData = useMemo(() => 
@@ -411,8 +437,9 @@ const HealthMetricsWindow = () => {
                     data={TEST_DATA_CATEGORIES}
                     selected={selectedCategory}
                     onChangeValue={(category) => {
-                        setTestDataCategory(category.id as 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api');
-                        handleRefresh(category.id as 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api');
+                        const categoryType = category.id as 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api';
+                        setTestDataCategory(categoryType);
+                        handleRefresh(categoryType);
                     }}
                     labelExtractor={(item) => item.label}
                     placeholder="Select Data"

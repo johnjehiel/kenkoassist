@@ -9,6 +9,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { Logger } from '@lib/state/Logger';
 import { testDailyData_blood_glucose, testDailyData_blood_glucose_aggregate, testDailyData_BP_fluctuations, testDailyData_BP_fluctuations_aggregate, testDailyData_oxygen_saturation, testDailyData_oxygen_saturation_aggregate, testDailyData_sleep, testDailyData_sleep_aggregate, testDailyData_training, testDailyData_training_aggregate } from '@lib/constants/TestData';
+import { HealthMetrics } from '@lib/state/HealthMetrics';
 
 // Define metrics to read and their extractors
 // const METRICS: {
@@ -107,7 +108,7 @@ export default function useHealthData() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
-  
+
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchStateRef = useRef<FetchState>({
@@ -344,6 +345,9 @@ export default function useHealthData() {
           Logger.debug('Using oxygen saturation test data');
           break;
       }
+      setLastUpdated(new Date());
+      setIsLoading(false);
+      setIsRefreshing(false);
       return ;
     }
 
@@ -358,6 +362,8 @@ export default function useHealthData() {
     const now = Date.now();
     if (fetchStateRef.current.isFetching || 
         (now - fetchStateRef.current.lastFetchAttempt < 2000)) {
+      setIsLoading(false);
+      setIsRefreshing(false);
       return;
     }
 
@@ -404,7 +410,11 @@ export default function useHealthData() {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      if (signal.aborted || !isMountedRef.current) return;
+      if (signal.aborted || !isMountedRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        return;
+      }
 
       // Process daily data
       const dailyHealthData: DailyHealthData = {};
@@ -452,7 +462,10 @@ export default function useHealthData() {
   // Initial data fetch when permissions are available
   useEffect(() => {
     if (permissions.length > 0 && !fetchStateRef.current.isFetching) {
-      fetchHealthData('sleep'); // Default to 'api' to fetch all data
+      // Get the stored category from HealthMetrics state
+      const { selectedCategory } = HealthMetrics.useHealthMetricsState.getState();
+      // Use the stored category or fall back to 'sleep' if not available
+      fetchHealthData(selectedCategory || 'sleep');
     }
   }, [permissions, fetchHealthData]);
 

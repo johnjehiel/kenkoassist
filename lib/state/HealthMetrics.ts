@@ -72,12 +72,16 @@ interface HealthMetricsStateProps {
   isEnabled: boolean;
   error: string | null;
   
+  // Selected category for metrics
+  selectedCategory: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api';
+  
   // Actions
   updateData: (healthData: HealthData, dailyHealthData: DailyHealthData, timestamp?: Date | string) => void;
   clearData: () => void;
   setEnabled: (enabled: boolean) => void;
   setError: (error: string | null) => void;
   getCache: () => HealthMetricsTokenCache;
+  setSelectedCategory: (category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => void;
 }
 
 // Helper function to normalize timestamp
@@ -277,6 +281,7 @@ export namespace HealthMetrics {
         lastUpdated: null,
         isEnabled: false,
         error: null,
+        selectedCategory: 'sleep', // Default category
 
         updateData: (healthData: HealthData, dailyHealthData: DailyHealthData, timestamp = new Date()) => {
           const state = get();
@@ -339,6 +344,10 @@ export namespace HealthMetrics {
           set({ error });
         },
 
+        setSelectedCategory: (category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => {
+          set({ selectedCategory: category });
+        },
+
         getCache: (): HealthMetricsTokenCache => {
           const state = get();
           const cache = state.tokenCache;
@@ -398,6 +407,7 @@ export namespace HealthMetrics {
           lastUpdated: state.lastUpdated,
           isEnabled: state.isEnabled,
           error: state.error,
+          selectedCategory: state.selectedCategory,
           // Note: tokenCache is not persisted as it should be recalculated on app restart
         }),
         migrate: async (persistedState: any, version) => {
