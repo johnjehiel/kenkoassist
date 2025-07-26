@@ -1,445 +1,513 @@
 import { Theme } from '@lib/theme/ThemeManager'
 import React, { useEffect, useMemo, useCallback, useState } from 'react'
-import { Text, View, ActivityIndicator, Platform, Alert, TouchableOpacity } from 'react-native';
+import { Text, View, ActivityIndicator, Platform, Alert, TouchableOpacity } from 'react-native'
 
 import ThemedButton from '@components/buttons/ThemedButton'
-import DropdownSheet from '@components/input/DropdownSheet';
+import DropdownSheet from '@components/input/DropdownSheet'
 
 import useHealthData from '@lib/hooks/useHealthData'
 import { HealthMetrics } from '@lib/state/HealthMetrics'
-import { healthCategories, labelMap, unitsMap } from '@lib/constants/HealthMetricsData';
+import { healthCategories, labelMap, unitsMap } from '@lib/constants/HealthMetricsData'
 
-const TEST_DATA_CATEGORIES = [
+export type MetricCategory = 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'
+
+const TEST_DATA_CATEGORIES: { id: MetricCategory; label: string }[] = [
     { id: 'sleep', label: 'Sleep' },
     { id: 'training', label: 'Training' },
     { id: 'bp', label: 'Blood Pressure' },
     { id: 'glucose', label: 'Glucose' },
     { id: 'oxygen', label: 'Oxygen' },
     { id: 'api', label: 'Default' },
-];
+]
 
 const HealthMetricsWindow = () => {
-    const { 
-        data, 
+    const {
+        data,
         dailyData,
-        permissions, 
-        isLoading, 
-        isRefreshing, 
-        refreshData, 
+        permissions,
+        isLoading,
+        isRefreshing,
+        refreshData,
         lastUpdated,
-        error: hookError 
-    } = useHealthData();
-    
-    const { 
+        error: hookError,
+    } = useHealthData()
+
+    const {
         data: storedData,
         dailyData: storedDailyData,
-        updateData, 
+        updateData,
         lastUpdated: storeLastUpdated,
         isEnabled,
         error: storeError,
         setError,
         clearData,
         selectedCategory: storedCategory,
-        setSelectedCategory
-    } = HealthMetrics.useHealthMetricsState();
-    
-    const { spacing, color, fontSize } = Theme.useTheme();
+        setSelectedCategory,
+    } = HealthMetrics.useHealthMetricsState()
+
+    const { spacing, color, fontSize } = Theme.useTheme()
 
     // View mode state (daily or aggregate)
-    const [viewMode, setViewMode] = useState<'daily' | 'aggregate'>('daily');
-    
+    const [viewMode, setViewMode] = useState<'daily' | 'aggregate'>('daily')
+
     // Use stored category with fallback to 'sleep'
-    const [testDataCategory, setLocalTestDataCategory] = useState<'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'>(
+    const [testDataCategory, setLocalTestDataCategory] = useState<MetricCategory>(
         storedCategory || 'sleep'
-    );
-    
+    )
+
     // Sync with stored category if it changes
     useEffect(() => {
         if (storedCategory && testDataCategory !== storedCategory) {
-            setLocalTestDataCategory(storedCategory);
+            setLocalTestDataCategory(storedCategory)
         }
-    }, [storedCategory]);
+    }, [storedCategory])
 
     // Update both local and global state
-    const setTestDataCategory = useCallback((category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => {
-        setLocalTestDataCategory(category);
-        setSelectedCategory(category);
-    }, [setSelectedCategory]);
+    const setTestDataCategory = useCallback(
+        (category: MetricCategory) => {
+            setLocalTestDataCategory(category)
+            setSelectedCategory(category)
+        },
+        [setSelectedCategory]
+    )
 
     // Consolidated useEffect for all data management
     useEffect(() => {
         if (!isEnabled) {
-            clearData();
-            return;
+            clearData()
+            return
         }
 
         // Update store when new data arrives
         if (data && dailyData && Object.keys(data).length > 0) {
-            updateData(data, dailyData, lastUpdated);
+            updateData(data, dailyData, lastUpdated)
         }
 
         // Handle hook errors
         if (hookError) {
-            setError(hookError);
+            setError(hookError)
         }
-    }, [isEnabled, data, dailyData, lastUpdated, hookError, updateData, setError, clearData]);
+    }, [isEnabled, data, dailyData, lastUpdated, hookError, updateData, setError, clearData])
 
     // Update initial data fetch to use the stored category
     useEffect(() => {
         if (isEnabled && permissions.length > 0 && !isLoading && !isRefreshing) {
-            refreshData(testDataCategory);
+            refreshData(testDataCategory)
         }
-    }, [isEnabled, permissions.length, refreshData, testDataCategory]);
+    }, [isEnabled, permissions.length, refreshData, testDataCategory])
 
     // Use stored data if available and feature enabled, otherwise hook data
-    const displayData = useMemo(() => 
-        isEnabled && Object.keys(storedData).length > 0 ? storedData : data
-    , [storedData, data, isEnabled]);
-    
+    const displayData = useMemo(
+        () => (isEnabled && Object.keys(storedData).length > 0 ? storedData : data),
+        [storedData, data, isEnabled]
+    )
+
     // Use stored daily data if available and feature enabled, otherwise hook daily data
-    const displayDailyData = useMemo(() => 
-        isEnabled && Object.keys(storedDailyData || {}).length > 0 ? storedDailyData : dailyData
-    , [storedDailyData, dailyData, isEnabled]);
-    
+    const displayDailyData = useMemo(
+        () =>
+            isEnabled && Object.keys(storedDailyData || {}).length > 0
+                ? storedDailyData
+                : dailyData,
+        [storedDailyData, dailyData, isEnabled]
+    )
+
     // Get sorted dates for daily data display
-    const sortedDates = useMemo(() => 
-        Object.keys(displayDailyData || {}).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-    , [displayDailyData]);
+    const sortedDates = useMemo(
+        () =>
+            Object.keys(displayDailyData || {}).sort(
+                (a, b) => new Date(b).getTime() - new Date(a).getTime()
+            ),
+        [displayDailyData]
+    )
 
     // Find the currently selected test data category object
-    const selectedCategory = useMemo(() => 
-        TEST_DATA_CATEGORIES.find(cat => cat.id === testDataCategory) || TEST_DATA_CATEGORIES[0]
-    , [testDataCategory]);
+    const selectedCategory = useMemo(
+        () =>
+            TEST_DATA_CATEGORIES.find((cat) => cat.id === testDataCategory) ||
+            TEST_DATA_CATEGORIES[0],
+        [testDataCategory]
+    )
 
-    const handleRefresh = useCallback((category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api') => {
-        if (!isEnabled) {
-            Alert.alert(
-                'Feature Disabled',
-                'Health Metrics feature is disabled. Please enable it in Settings to refresh data.',
-                [{ text: 'OK' }]
-            );
-            return;
-        }
-        
-        // Clear errors before refreshing
-        if (storeError || hookError) {
-            setError(null);
-        }
-        
-        refreshData(category);
-    }, [refreshData, isEnabled, storeError, hookError, setError]);
+    const handleRefresh = useCallback(
+        (category: MetricCategory) => {
+            if (!isEnabled) {
+                Alert.alert(
+                    'Feature Disabled',
+                    'Health Metrics feature is disabled. Please enable it in Settings to refresh data.',
+                    [{ text: 'OK' }]
+                )
+                return
+            }
+
+            // Clear errors before refreshing
+            if (storeError || hookError) {
+                setError(null)
+            }
+
+            refreshData(category)
+        },
+        [refreshData, isEnabled, storeError, hookError, setError]
+    )
 
     // Helper function to format metric value
-    const formatMetricValue = useCallback((value: number | null, unit: string, label: string): string => {
-        if (value === null || value === undefined || value < 0) return 'N/A';
+    const formatMetricValue = useCallback(
+        (value: number | null, unit: string, label: string): string => {
+            if (value === null || value === undefined || value < 0) return 'N/A'
 
-        const formatted = (label === 'Steps' || label === 'Heart Rate' || label === 'BP Systolic' || label === 'BP Diastolic' || label == 'Breathing Rate') ?
-            value.toString() : ((typeof value === 'number') ? 
-            value.toFixed(2) : String(value));
-        return unit ? `${formatted} ${unit}` : formatted;
-    }, []);
+            const formatted =
+                label === 'Steps' ||
+                label === 'Heart Rate' ||
+                label === 'BP Systolic' ||
+                label === 'BP Diastolic' ||
+                label == 'Breathing Rate'
+                    ? value.toString()
+                    : typeof value === 'number'
+                      ? value.toFixed(2)
+                      : String(value)
+            return unit ? `${formatted} ${unit}` : formatted
+        },
+        []
+    )
 
     // Render individual metric
-    const renderMetric = useCallback((metricKey: string, value: number | null) => {
-        const label = labelMap[metricKey] || metricKey;
-        const unit = unitsMap[metricKey] || '';
-        const formattedValue = formatMetricValue(value, unit, label);
-        
-        return (
-            <View 
-                key={metricKey}
-                style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingVertical: spacing.xs,
-                    paddingHorizontal: spacing.sm,
-                    backgroundColor: color.primary._100,
-                    borderRadius: 8,
-                    marginVertical: spacing.xs / 2,
-                }}
-            >
-                <Text style={{ 
-                    color: color.text._300, 
-                    fontSize: fontSize.m,
-                    flex: 1
-                }}>
-                    {label}
-                </Text>
-                <Text style={{ 
-                    color: value !== null && value > 0 ? color.text._200 : color.text._400, 
-                    fontSize: fontSize.m,
-                    fontWeight: '600',
-                    textAlign: 'right'
-                }}>
-                    {formattedValue}
-                </Text>
-            </View>
-        );
-    }, [formatMetricValue, spacing, color, fontSize]);
+    const renderMetric = useCallback(
+        (metricKey: string, value: number | null) => {
+            const label = labelMap[metricKey] || metricKey
+            const unit = unitsMap[metricKey] || ''
+            const formattedValue = formatMetricValue(value, unit, label)
 
-    const renderCategory = useCallback((categoryKey: string, categoryInfo: any) => {
-        const categoryMetrics = categoryInfo.metrics.filter((metricKey: string) => 
-            displayData[metricKey] !== null && 
-            displayData[metricKey] !== undefined && 
-            displayData[metricKey] > 0
-        );
+            return (
+                <View
+                    key={metricKey}
+                    style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingVertical: spacing.xs,
+                        paddingHorizontal: spacing.sm,
+                        backgroundColor: color.primary._100,
+                        borderRadius: 8,
+                        marginVertical: spacing.xs / 2,
+                    }}>
+                    <Text
+                        style={{
+                            color: color.text._300,
+                            fontSize: fontSize.m,
+                            flex: 1,
+                        }}>
+                        {label}
+                    </Text>
+                    <Text
+                        style={{
+                            color: value !== null && value > 0 ? color.text._200 : color.text._400,
+                            fontSize: fontSize.m,
+                            fontWeight: '600',
+                            textAlign: 'right',
+                        }}>
+                        {formattedValue}
+                    </Text>
+                </View>
+            )
+        },
+        [formatMetricValue, spacing, color, fontSize]
+    )
 
-        if (categoryMetrics.length === 0) return null;
+    const renderCategory = useCallback(
+        (categoryKey: string, categoryInfo: any) => {
+            const categoryMetrics = categoryInfo.metrics.filter(
+                (metricKey: string) =>
+                    displayData[metricKey] !== null &&
+                    displayData[metricKey] !== undefined &&
+                    displayData[metricKey] > 0
+            )
 
-        return (
-            <View key={categoryKey} style={{ marginBottom: spacing.m }}>
-                <Text style={{
-                    fontSize: fontSize.l,
-                    fontWeight: 'bold',
-                    color: color.text._100,
-                    marginBottom: spacing.xs
-                }}>
-                    {categoryInfo.name}
-                </Text>
+            if (categoryMetrics.length === 0) return null
 
-                {categoryMetrics.map((metricKey: string) => 
-                    renderMetric(metricKey, displayData[metricKey])
-                )}
-            </View>
-        );
-    }, [displayData, renderMetric, spacing, color, fontSize]);
-    
+            return (
+                <View key={categoryKey} style={{ marginBottom: spacing.m }}>
+                    <Text
+                        style={{
+                            fontSize: fontSize.l,
+                            fontWeight: 'bold',
+                            color: color.text._100,
+                            marginBottom: spacing.xs,
+                        }}>
+                        {categoryInfo.name}
+                    </Text>
+
+                    {categoryMetrics.map((metricKey: string) =>
+                        renderMetric(metricKey, displayData[metricKey])
+                    )}
+                </View>
+            )
+        },
+        [displayData, renderMetric, spacing, color, fontSize]
+    )
+
     // Render daily metrics for a specific date
-    const renderDailyMetrics = useCallback((date: string) => {
-        const dateData = displayDailyData?.[date];
-        if (!dateData) return null;
-        
-        // Find metrics that have data for this day
-        const availableMetrics = Object.keys(dateData).filter(key => 
-            dateData[key] !== null && 
-            dateData[key] !== undefined && 
-            dateData[key] > 0
-        );
-        
-        if (availableMetrics.length === 0) return null;
-        
-        const formattedDate = new Date(date).toLocaleDateString('en-US', { 
-            weekday: 'long',
-            month: 'short',
-            day: 'numeric'
-        });
-        
-        return (
-            <View key={date} style={{ 
-                marginBottom: spacing.m,
-                backgroundColor: color.primary._100,
-                borderRadius: 8,
-                padding: spacing.sm
-            }}>
-                <Text style={{
-                    fontSize: fontSize.l,
-                    fontWeight: 'bold',
-                    color: color.text._100,
-                    marginBottom: spacing.sm,
-                    textAlign: 'center'
-                }}>
-                    {formattedDate}
-                </Text>
-                
-                {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) => {
-                    // Filter metrics in this category that have data for this day
-                    const categoryMetrics = categoryInfo.metrics.filter(metricKey => 
-                        dateData[metricKey] !== null && 
-                        dateData[metricKey] !== undefined && 
-                        dateData[metricKey] > 0
-                    );
-                    
-                    if (categoryMetrics.length === 0) return null;
-                    
-                    return (
-                        <View key={categoryKey} style={{ marginBottom: spacing.xs }}>
-                            <Text style={{
-                                fontSize: fontSize.m,
-                                fontWeight: 'bold',
-                                color: color.text._100,
-                                marginBottom: spacing.xs / 2
-                            }}>
-                                {categoryInfo.name}
-                            </Text>
-                            
-                            {categoryMetrics.map(metricKey => {
-                                const value = dateData[metricKey];
-                                const label = labelMap[metricKey] || metricKey;
-                                const unit = unitsMap[metricKey] || '';
-                                const formattedValue = formatMetricValue(value, unit, label);
-                                
-                                return (
-                                    <View 
-                                        key={metricKey}
-                                        style={{
-                                            flexDirection: 'row',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            paddingVertical: spacing.xs / 2,
-                                            paddingHorizontal: spacing.sm,
-                                            backgroundColor: color.primary._100,
-                                            borderRadius: 8,
-                                            marginVertical: spacing.xs / 4,
-                                        }}
-                                    >
-                                        <Text style={{ fontSize: fontSize.s, color: color.text._100 }}>
-                                            {label}
-                                        </Text>
-                                        <Text style={{ fontSize: fontSize.s, fontWeight: 'bold', color: color.text._100 }}>
-                                            {formattedValue}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    );
-                })}
-            </View>
-        );
-    }, [displayDailyData, spacing, color, fontSize, formatMetricValue]);
+    const renderDailyMetrics = useCallback(
+        (date: string) => {
+            const dateData = displayDailyData?.[date]
+            if (!dateData) return null
+
+            // Find metrics that have data for this day
+            const availableMetrics = Object.keys(dateData).filter(
+                (key) => dateData[key] !== null && dateData[key] !== undefined && dateData[key] > 0
+            )
+
+            if (availableMetrics.length === 0) return null
+
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric',
+            })
+
+            return (
+                <View
+                    key={date}
+                    style={{
+                        marginBottom: spacing.m,
+                        backgroundColor: color.primary._100,
+                        borderRadius: 8,
+                        padding: spacing.sm,
+                    }}>
+                    <Text
+                        style={{
+                            fontSize: fontSize.l,
+                            fontWeight: 'bold',
+                            color: color.text._100,
+                            marginBottom: spacing.sm,
+                            textAlign: 'center',
+                        }}>
+                        {formattedDate}
+                    </Text>
+
+                    {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) => {
+                        // Filter metrics in this category that have data for this day
+                        const categoryMetrics = categoryInfo.metrics.filter(
+                            (metricKey) =>
+                                dateData[metricKey] !== null &&
+                                dateData[metricKey] !== undefined &&
+                                dateData[metricKey] > 0
+                        )
+
+                        if (categoryMetrics.length === 0) return null
+
+                        return (
+                            <View key={categoryKey} style={{ marginBottom: spacing.xs }}>
+                                <Text
+                                    style={{
+                                        fontSize: fontSize.m,
+                                        fontWeight: 'bold',
+                                        color: color.text._100,
+                                        marginBottom: spacing.xs / 2,
+                                    }}>
+                                    {categoryInfo.name}
+                                </Text>
+
+                                {categoryMetrics.map((metricKey) => {
+                                    const value = dateData[metricKey]
+                                    const label = labelMap[metricKey] || metricKey
+                                    const unit = unitsMap[metricKey] || ''
+                                    const formattedValue = formatMetricValue(value, unit, label)
+
+                                    return (
+                                        <View
+                                            key={metricKey}
+                                            style={{
+                                                flexDirection: 'row',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                paddingVertical: spacing.xs / 2,
+                                                paddingHorizontal: spacing.sm,
+                                                backgroundColor: color.primary._100,
+                                                borderRadius: 8,
+                                                marginVertical: spacing.xs / 4,
+                                            }}>
+                                            <Text
+                                                style={{
+                                                    fontSize: fontSize.s,
+                                                    color: color.text._100,
+                                                }}>
+                                                {label}
+                                            </Text>
+                                            <Text
+                                                style={{
+                                                    fontSize: fontSize.s,
+                                                    fontWeight: 'bold',
+                                                    color: color.text._100,
+                                                }}>
+                                                {formattedValue}
+                                            </Text>
+                                        </View>
+                                    )
+                                })}
+                            </View>
+                        )
+                    })}
+                </View>
+            )
+        },
+        [displayDailyData, spacing, color, fontSize, formatMetricValue]
+    )
 
     // Early returns for different states
     if (!isEnabled) {
         return (
-            <View style={{ 
-                rowGap: spacing.sm, 
-                alignItems: 'center',
-                paddingVertical: spacing.xl 
-            }}>
-                <Text style={{ 
-                    color: color.text._300, 
-                    fontSize: fontSize.m,
-                    textAlign: 'center',
-                    marginBottom: spacing.m
+            <View
+                style={{
+                    rowGap: spacing.sm,
+                    alignItems: 'center',
+                    paddingVertical: spacing.xl,
                 }}>
+                <Text
+                    style={{
+                        color: color.text._300,
+                        fontSize: fontSize.m,
+                        textAlign: 'center',
+                        marginBottom: spacing.m,
+                    }}>
                     Health Metrics Feature Disabled
                 </Text>
-                <Text style={{ 
-                    color: color.text._200, 
-                    fontSize: fontSize.s,
-                    textAlign: 'center',
-                    paddingHorizontal: spacing.xl
-                }}>
+                <Text
+                    style={{
+                        color: color.text._200,
+                        fontSize: fontSize.s,
+                        textAlign: 'center',
+                        paddingHorizontal: spacing.xl,
+                    }}>
                     Enable Health Metrics in Settings to view your health data
                 </Text>
             </View>
-        );
+        )
     }
 
     if (Platform.OS !== 'android') {
         return (
-            <View style={{ 
-                rowGap: spacing.sm, 
-                alignItems: 'center',
-                paddingVertical: spacing.xl 
-            }}>
-                <Text style={{ 
-                    color: color.text._300, 
-                    fontSize: fontSize.m,
-                    textAlign: 'center'
+            <View
+                style={{
+                    rowGap: spacing.sm,
+                    alignItems: 'center',
+                    paddingVertical: spacing.xl,
                 }}>
+                <Text
+                    style={{
+                        color: color.text._300,
+                        fontSize: fontSize.m,
+                        textAlign: 'center',
+                    }}>
                     Health Metrics is only available on Android devices with Health Connect
                 </Text>
             </View>
-        );
+        )
     }
 
+    // Loading indicator for initial data fetch
     if (permissions.length === 0 || isLoading) {
         return (
-            <View style={{ 
-                rowGap: spacing.sm, 
-                alignItems: 'center',
-                paddingVertical: spacing.xl 
-            }}>
-                <ActivityIndicator size="large" color={color.primary._300} />
-                <Text style={{ 
-                    color: color.text._300, 
-                    fontSize: fontSize.m,
-                    textAlign: 'center'
+            <View
+                style={{
+                    rowGap: spacing.sm,
+                    alignItems: 'center',
+                    paddingVertical: spacing.xl,
                 }}>
-                    {permissions.length === 0 ? 'Requesting Health Permissions...' : 'Loading health data...'}
+                <ActivityIndicator size="large" color={color.primary._300} />
+                <Text
+                    style={{
+                        color: color.text._300,
+                        fontSize: fontSize.m,
+                        textAlign: 'center',
+                    }}>
+                    {permissions.length === 0
+                        ? 'Requesting Health Permissions...'
+                        : 'Loading health data...'}
                 </Text>
             </View>
-        );
+        )
     }
 
-    const currentError = storeError || hookError;
+    const currentError = storeError || hookError
     if (currentError) {
         return (
             <View style={{ rowGap: spacing.sm }}>
-                <View style={{
-                    backgroundColor: color.primary._100,
-                    padding: spacing.m,
-                    borderRadius: 8,
-                    borderLeftWidth: 4,
-                    borderLeftColor: '#ef4444',
-                    marginBottom: spacing.m
-                }}>
-                    <Text style={{ 
-                        color: '#ef4444', 
-                        fontSize: fontSize.m,
-                        fontWeight: '600',
-                        marginBottom: spacing.xs
+                <View
+                    style={{
+                        backgroundColor: color.primary._100,
+                        padding: spacing.m,
+                        borderRadius: 8,
+                        borderLeftWidth: 4,
+                        borderLeftColor: '#ef4444',
+                        marginBottom: spacing.m,
                     }}>
+                    <Text
+                        style={{
+                            color: '#ef4444',
+                            fontSize: fontSize.m,
+                            fontWeight: '600',
+                            marginBottom: spacing.xs,
+                        }}>
                         Error Loading Health Data
                     </Text>
-                    <Text style={{ 
-                        color: color.text._300, 
-                        fontSize: fontSize.s
-                    }}>
+                    <Text
+                        style={{
+                            color: color.text._300,
+                            fontSize: fontSize.s,
+                        }}>
                         {currentError}
                     </Text>
                 </View>
 
                 <ThemedButton
                     label={isRefreshing ? 'Retrying...' : 'Retry'}
-                    onPress={() => handleRefresh(testDataCategory)} 
+                    onPress={() => handleRefresh(testDataCategory)}
                     iconName="reload1"
                     disabled={isRefreshing}
                 />
-                
+
                 <View style={{ paddingVertical: spacing.xl3 }} />
             </View>
-        );
+        )
     }
 
-    const hasData = Object.keys(displayData).length > 0;
-    const lastUpdateTime = storeLastUpdated || (lastUpdated ? lastUpdated.toISOString() : null);
+    const hasData = Object.keys(displayData).length > 0
+    const lastUpdateTime = storeLastUpdated || (lastUpdated ? lastUpdated.toISOString() : null)
 
     return (
         <View style={{ rowGap: spacing.sm }}>
-            
-            <View style={{
+            <View
+                style={{
                     backgroundColor: color.primary._100,
                     padding: spacing.sm,
-                    borderRadius: 8
+                    borderRadius: 8,
                 }}>
-                    <Text style={{ 
-                        color: color.text._100, 
+                <Text
+                    style={{
+                        color: color.text._100,
                         fontSize: fontSize.l,
                         fontWeight: '700',
-                        textAlign: 'center'
+                        textAlign: 'center',
                     }}>
-                        Health Metrics
-                    </Text>
+                    Health Metrics
+                </Text>
             </View>
 
             {/* Test Data Category Selector */}
-            <View style={{
-                backgroundColor: color.neutral._100,
-                borderRadius: 8,
-                padding: spacing.sm,
-                marginVertical: spacing.xs,
-                marginTop: spacing.l
-            }}>
+            <View
+                style={{
+                    backgroundColor: color.neutral._100,
+                    borderRadius: 8,
+                    padding: spacing.sm,
+                    marginVertical: spacing.xs,
+                    marginTop: spacing.l,
+                }}>
                 <DropdownSheet
                     data={TEST_DATA_CATEGORIES}
                     selected={selectedCategory}
                     onChangeValue={(category) => {
-                        const categoryType = category.id as 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api';
-                        setTestDataCategory(categoryType);
-                        handleRefresh(categoryType);
+                        const categoryType = category.id as MetricCategory
+                        setTestDataCategory(categoryType)
+                        handleRefresh(categoryType)
                     }}
                     labelExtractor={(item) => item.label}
                     placeholder="Select Data"
@@ -450,48 +518,50 @@ const HealthMetricsWindow = () => {
                     }}
                 />
             </View>
-            
+
             {/* Tab buttons to switch between daily and aggregate views */}
-            <View style={{ 
-                flexDirection: 'row', 
-                backgroundColor: color.neutral._100,
-                borderRadius: 8,
-                marginVertical: spacing.xs
-            }}>
+            <View
+                style={{
+                    flexDirection: 'row',
+                    backgroundColor: color.neutral._100,
+                    borderRadius: 8,
+                    marginVertical: spacing.xs,
+                }}>
                 <TouchableOpacity
-                    style={{ 
+                    style={{
                         flex: 1,
                         padding: spacing.sm,
                         backgroundColor: viewMode === 'daily' ? color.primary._300 : 'transparent',
                         borderRadius: 8,
-                        alignItems: 'center'
+                        alignItems: 'center',
                     }}
-                    onPress={() => setViewMode('daily')}
-                >
-                    <Text style={{ 
-                        fontSize: fontSize.m,
-                        fontWeight: viewMode === 'daily' ? 'bold' : 'normal',
-                        color: viewMode === 'daily' ? color.text._900 : color.text._100
-                    }}>
+                    onPress={() => setViewMode('daily')}>
+                    <Text
+                        style={{
+                            fontSize: fontSize.m,
+                            fontWeight: viewMode === 'daily' ? 'bold' : 'normal',
+                            color: viewMode === 'daily' ? color.text._900 : color.text._100,
+                        }}>
                         Daily View
                     </Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
-                    style={{ 
+                    style={{
                         flex: 1,
                         padding: spacing.sm,
-                        backgroundColor: viewMode === 'aggregate' ? color.primary._300 : 'transparent',
+                        backgroundColor:
+                            viewMode === 'aggregate' ? color.primary._300 : 'transparent',
                         borderRadius: 8,
-                        alignItems: 'center'
+                        alignItems: 'center',
                     }}
-                    onPress={() => setViewMode('aggregate')}
-                >
-                    <Text style={{ 
-                        fontSize: fontSize.m,
-                        fontWeight: viewMode === 'aggregate' ? 'bold' : 'normal',
-                        color: viewMode === 'aggregate' ? color.text._900 : color.text._100
-                    }}>
+                    onPress={() => setViewMode('aggregate')}>
+                    <Text
+                        style={{
+                            fontSize: fontSize.m,
+                            fontWeight: viewMode === 'aggregate' ? 'bold' : 'normal',
+                            color: viewMode === 'aggregate' ? color.text._900 : color.text._100,
+                        }}>
                         7-Day Summary
                     </Text>
                 </TouchableOpacity>
@@ -502,17 +572,19 @@ const HealthMetricsWindow = () => {
                     // Daily metrics view
                     <View style={{ paddingBottom: spacing.xs }}>
                         {sortedDates.length > 0 ? (
-                            sortedDates.map(date => renderDailyMetrics(date))
+                            sortedDates.map((date) => renderDailyMetrics(date))
                         ) : (
-                            <View style={{
-                                alignItems: 'center',
-                                paddingVertical: spacing.xl
-                            }}>
-                                <Text style={{ 
-                                    color: color.text._300, 
-                                    fontSize: fontSize.m,
-                                    textAlign: 'center'
+                            <View
+                                style={{
+                                    alignItems: 'center',
+                                    paddingVertical: spacing.xl,
                                 }}>
+                                <Text
+                                    style={{
+                                        color: color.text._300,
+                                        fontSize: fontSize.m,
+                                        textAlign: 'center',
+                                    }}>
                                     No daily health metrics available.
                                 </Text>
                             </View>
@@ -521,42 +593,47 @@ const HealthMetricsWindow = () => {
                 ) : (
                     // Aggregate metrics view
                     <View style={{ paddingBottom: spacing.xs }}>
-                        {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) => 
+                        {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) =>
                             renderCategory(categoryKey, categoryInfo)
                         )}
                     </View>
                 )
             ) : (
-                <View style={{
-                    alignItems: 'center',
-                    paddingVertical: spacing.xl2
-                }}>
-                    <Text style={{ 
-                        color: color.text._300, 
-                        fontSize: fontSize.m,
-                        textAlign: 'center',
-                        marginBottom: spacing.m
+                <View
+                    style={{
+                        alignItems: 'center',
+                        paddingVertical: spacing.xl2,
                     }}>
+                    <Text
+                        style={{
+                            color: color.text._300,
+                            fontSize: fontSize.m,
+                            textAlign: 'center',
+                            marginBottom: spacing.m,
+                        }}>
                         No health data available
                     </Text>
-                    <Text style={{ 
-                        color: color.text._200, 
-                        fontSize: fontSize.s,
-                        textAlign: 'center',
-                        paddingHorizontal: spacing.xl,
-                        marginBottom: spacing.m
-                    }}>
-                        Try refreshing to fetch your latest health metrics from Health Connect
-                    </Text>
-                    
-                    {permissions.length > 0 && (
-                        <Text style={{ 
-                            color: color.text._200, 
+                    <Text
+                        style={{
+                            color: color.text._200,
                             fontSize: fontSize.s,
                             textAlign: 'center',
-                            paddingHorizontal: spacing.xl
+                            paddingHorizontal: spacing.xl,
+                            marginBottom: spacing.m,
                         }}>
-                            Make sure you have recent health data in Health Connect and that the app has the necessary permissions.
+                        Try refreshing to fetch your latest health metrics from Health Connect
+                    </Text>
+
+                    {permissions.length > 0 && (
+                        <Text
+                            style={{
+                                color: color.text._200,
+                                fontSize: fontSize.s,
+                                textAlign: 'center',
+                                paddingHorizontal: spacing.xl,
+                            }}>
+                            Make sure you have recent health data in Health Connect and that the app
+                            has the necessary permissions.
                         </Text>
                     )}
                 </View>
@@ -564,16 +641,18 @@ const HealthMetricsWindow = () => {
 
             <View style={{ paddingVertical: spacing.xs }} />
             {lastUpdateTime && (
-                <View style={{
-                    backgroundColor: color.neutral._100,
-                    padding: spacing.sm,
-                    borderRadius: 8
-                }}>
-                    <Text style={{ 
-                        color: color.text._400, 
-                        fontSize: fontSize.s,
-                        textAlign: 'center'
+                <View
+                    style={{
+                        backgroundColor: color.neutral._100,
+                        padding: spacing.sm,
+                        borderRadius: 8,
                     }}>
+                    <Text
+                        style={{
+                            color: color.text._400,
+                            fontSize: fontSize.s,
+                            textAlign: 'center',
+                        }}>
                         Last Updated: {new Date(lastUpdateTime).toLocaleString()}
                     </Text>
                 </View>
@@ -581,14 +660,14 @@ const HealthMetricsWindow = () => {
 
             <ThemedButton
                 label={isRefreshing ? 'Refreshing...' : 'Refresh'}
-                onPress={() => handleRefresh(testDataCategory)} 
+                onPress={() => handleRefresh(testDataCategory)}
                 iconName="reload1"
                 disabled={isRefreshing}
             />
-            
+
             <View style={{ paddingVertical: spacing.xl3 }} />
         </View>
-    );
-};
+    )
+}
 
-export default HealthMetricsWindow;
+export default HealthMetricsWindow

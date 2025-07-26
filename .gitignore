@@ -49,3 +49,7 @@ yarn-error.*
 
 expo-env.d.ts
 # @end expo-cli
+
+.github/
+
+package-lock.json
