@@ -6,6 +6,35 @@ import { SplashScreen, Stack } from 'expo-router'
 import { setOptions } from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { MenuProvider } from 'react-native-popup-menu'
+import * as TaskManager from 'expo-task-manager'
+import * as BackgroundFetch from 'expo-background-task'
+import { HEALTH_MONITOR_TASK } from '@lib/services/HealthMonitorTask'
+import { useEffect } from 'react'
+import { Logger } from '@lib/state/Logger'
+import { AppSettings } from '@lib/constants/GlobalValues'
+import { mmkv } from '@lib/storage/MMKV'
+
+export const updateHealthMonitorTaskStatus = async () => {
+    const healthMetricsEnabled = mmkv.getBoolean(AppSettings.HealthMetrics)
+    const healthMonitoringEnabled = mmkv.getBoolean(AppSettings.HealthMonitoring)
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(HEALTH_MONITOR_TASK)
+
+    if (healthMetricsEnabled && healthMonitoringEnabled) {
+        if (isRegistered) {
+            Logger.info('Health monitor task already registered.')
+            return
+        }
+        await BackgroundFetch.registerTaskAsync(HEALTH_MONITOR_TASK, {
+            minimumInterval: 30 * 60, // 30 minutes
+        })
+        Logger.info('Health monitor task registered.')
+    } else {
+        if (isRegistered) {
+            await BackgroundFetch.unregisterTaskAsync(HEALTH_MONITOR_TASK)
+            Logger.info('Health monitor task unregistered.')
+        }
+    }
+}
 
 SplashScreen.preventAutoHideAsync()
 setOptions({
@@ -17,6 +46,10 @@ const Layout = () => {
     useDrizzleStudio(rawdb)
 
     const { color } = Theme.useTheme()
+
+    useEffect(() => {
+        updateHealthMonitorTaskStatus()
+    }, [])
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>

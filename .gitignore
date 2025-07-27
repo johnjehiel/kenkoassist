@@ -53,3 +53,10 @@ expo-env.d.ts
 .github/
 
 package-lock.json
+
+tasks/
+
+# for now
+app/Embedding.tsx
+eas.json.example
+lib/engine/Local/index.ts

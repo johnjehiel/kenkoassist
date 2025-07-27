@@ -28,6 +28,8 @@ export enum AppSettings {
     ShowTokenPerSecond = 'showtokenpersecond',
     AutoLoadUser = 'autoloaduser',
     HealthMetrics = 'healthmetrics',
+    HealthMonitoring = 'healthmonitoring',
+    HealthMonitoringUseSeparateModel = 'healthmonitoringuseseparatemodel',
 }
 
 /**
@@ -59,6 +61,8 @@ export const AppSettingsDefault: Record<AppSettings, boolean> = {
     [AppSettings.ShowTokenPerSecond]: false,
     [AppSettings.AutoLoadUser]: true,
     [AppSettings.HealthMetrics]: false,
+    [AppSettings.HealthMonitoring]: false,
+    [AppSettings.HealthMonitoringUseSeparateModel]: false,
 }
 
 export const CLAUDE_VERSION = '2023-06-01'
