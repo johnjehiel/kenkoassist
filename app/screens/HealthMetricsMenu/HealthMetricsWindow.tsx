@@ -102,7 +102,7 @@ const HealthMetricsWindow = () => {
         [storedData, data, isEnabled]
     )
 
-    // Use stored daily data if available and feature enabled, otherwise hook daily data
+    // Use stored daily data (now time-slotted) if available and feature enabled, otherwise hook daily data
     const displayDailyData = useMemo(
         () =>
             isEnabled && Object.keys(storedDailyData || {}).length > 0
@@ -111,10 +111,11 @@ const HealthMetricsWindow = () => {
         [storedDailyData, dailyData, isEnabled]
     )
 
-    // Get sorted dates for daily data display
-    const sortedDates = useMemo(
+    // Get sorted time slots for display, renaming 'sortedDates'
+    const sortedTimeSlots = useMemo(
         () =>
             Object.keys(displayDailyData || {}).sort(
+                // The logic remains the same, as keys are ISO timestamps
                 (a, b) => new Date(b).getTime() - new Date(a).getTime()
             ),
         [displayDailyData]
@@ -244,28 +245,45 @@ const HealthMetricsWindow = () => {
         [displayData, renderMetric, spacing, color, fontSize]
     )
 
-    // Render daily metrics for a specific date
-    const renderDailyMetrics = useCallback(
-        (date: string) => {
-            const dateData = displayDailyData?.[date]
-            if (!dateData) return null
+    // Render metrics for a specific time slot
+    const renderTimeSlotMetrics = useCallback(
+        (timestamp: string) => {
+            const slotData = displayDailyData?.[timestamp]
+            if (!slotData) return null
 
             // Find metrics that have data for this day
-            const availableMetrics = Object.keys(dateData).filter(
-                (key) => dateData[key] !== null && dateData[key] !== undefined && dateData[key] > 0
+            const availableMetrics = Object.keys(slotData).filter(
+                (key) => slotData[key] !== null && slotData[key] !== undefined && slotData[key] > 0
             )
 
             if (availableMetrics.length === 0) return null
 
-            const formattedDate = new Date(date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'short',
-                day: 'numeric',
-            })
+            // Format the time range label
+            const startTime = new Date(timestamp)
+            const endTime = new Date(startTime.getTime() + 30 * 60 * 1000) // 30 minutes later
+            const timeFormat: Intl.DateTimeFormatOptions = {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+            }
+            const timeRangeLabel = `${startTime.toLocaleTimeString(
+                'en-US',
+                timeFormat
+            )} - ${endTime.toLocaleTimeString('en-US', timeFormat)}`
+
+            // Include the date if it's not today
+            const today = new Date()
+            const slotDate = new Date(timestamp)
+            const dateLabel =
+                slotDate.toDateString() === today.toDateString()
+                    ? ''
+                    : slotDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+            const fullLabel = `${dateLabel} ${timeRangeLabel}`.trim()
 
             return (
                 <View
-                    key={date}
+                    key={timestamp}
                     style={{
                         marginBottom: spacing.m,
                         backgroundColor: color.primary._100,
@@ -280,16 +298,16 @@ const HealthMetricsWindow = () => {
                             marginBottom: spacing.sm,
                             textAlign: 'center',
                         }}>
-                        {formattedDate}
+                        {fullLabel}
                     </Text>
 
                     {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) => {
                         // Filter metrics in this category that have data for this day
                         const categoryMetrics = categoryInfo.metrics.filter(
                             (metricKey) =>
-                                dateData[metricKey] !== null &&
-                                dateData[metricKey] !== undefined &&
-                                dateData[metricKey] > 0
+                                slotData[metricKey] !== null &&
+                                slotData[metricKey] !== undefined &&
+                                slotData[metricKey] > 0
                         )
 
                         if (categoryMetrics.length === 0) return null
@@ -307,7 +325,7 @@ const HealthMetricsWindow = () => {
                                 </Text>
 
                                 {categoryMetrics.map((metricKey) => {
-                                    const value = dateData[metricKey]
+                                    const value = slotData[metricKey]
                                     const label = labelMap[metricKey] || metricKey
                                     const unit = unitsMap[metricKey] || ''
                                     const formattedValue = formatMetricValue(value, unit, label)
@@ -519,7 +537,7 @@ const HealthMetricsWindow = () => {
                 />
             </View>
 
-            {/* Tab buttons to switch between daily and aggregate views */}
+            {/* Tab buttons to switch between detailed and summary views */}
             <View
                 style={{
                     flexDirection: 'row',
@@ -542,7 +560,7 @@ const HealthMetricsWindow = () => {
                             fontWeight: viewMode === 'daily' ? 'bold' : 'normal',
                             color: viewMode === 'daily' ? color.text._900 : color.text._100,
                         }}>
-                        Daily View
+                        Time Slot View
                     </Text>
                 </TouchableOpacity>
 
@@ -562,17 +580,17 @@ const HealthMetricsWindow = () => {
                             fontWeight: viewMode === 'aggregate' ? 'bold' : 'normal',
                             color: viewMode === 'aggregate' ? color.text._900 : color.text._100,
                         }}>
-                        7-Day Summary
+                        4-Hour Summary
                     </Text>
                 </TouchableOpacity>
             </View>
 
             {hasData ? (
                 viewMode === 'daily' ? (
-                    // Daily metrics view
+                    // Time slot metrics view
                     <View style={{ paddingBottom: spacing.xs }}>
-                        {sortedDates.length > 0 ? (
-                            sortedDates.map((date) => renderDailyMetrics(date))
+                        {sortedTimeSlots.length > 0 ? (
+                            sortedTimeSlots.map((timestamp) => renderTimeSlotMetrics(timestamp))
                         ) : (
                             <View
                                 style={{
@@ -585,13 +603,13 @@ const HealthMetricsWindow = () => {
                                         fontSize: fontSize.m,
                                         textAlign: 'center',
                                     }}>
-                                    No daily health metrics available.
+                                    No health metrics available for the last 4 hours.
                                 </Text>
                             </View>
                         )}
                     </View>
                 ) : (
-                    // Aggregate metrics view
+                    // 4-Hour Summary (aggregate) view
                     <View style={{ paddingBottom: spacing.xs }}>
                         {Object.entries(healthCategories).map(([categoryKey, categoryInfo]) =>
                             renderCategory(categoryKey, categoryInfo)

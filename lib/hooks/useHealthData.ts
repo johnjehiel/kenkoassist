@@ -5,16 +5,11 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Platform } from 'react-native'
 import { Logger } from '@lib/state/Logger'
 import {
-    testDailyData_blood_glucose,
-    testDailyData_blood_glucose_aggregate,
-    testDailyData_BP_fluctuations,
-    testDailyData_BP_fluctuations_aggregate,
-    testDailyData_oxygen_saturation,
-    testDailyData_oxygen_saturation_aggregate,
-    testDailyData_sleep,
-    testDailyData_sleep_aggregate,
-    testDailyData_training,
-    testDailyData_training_aggregate,
+    testTimeSlotData_blood_glucose,
+    testTimeSlotData_BP_fluctuations,
+    testTimeSlotData_oxygen_saturation,
+    testTimeSlotData_sleep,
+    testTimeSlotData_training,
 } from '@lib/constants/TestData'
 import { HealthMetrics } from '@lib/state/HealthMetrics'
 import { MetricCategory } from '@screens/HealthMetricsMenu/HealthMetricsWindow'
@@ -145,12 +140,12 @@ const METRICS: {
     },
 ]
 
-// Interface for daily health data structure
-interface DailyHealthData {
-    [date: string]: Record<string, number | null>
+// Interface for time-slotted health data structure
+interface TimeSlotHealthData {
+    [timestamp: string]: Record<string, number | null>
 }
 
-// Legacy type for compatibility
+// Legacy type for compatibility (now represents 4-hour summary)
 type HealthData = Record<string, number | null>
 
 interface FetchState {
@@ -161,7 +156,9 @@ interface FetchState {
 
 export default function useHealthData() {
     const [permissions, setPermissions] = useState<Permission[]>([])
-    const [dailyData, setDailyData] = useState<DailyHealthData>({})
+    // This state now holds time-slotted data, not daily.
+    const [timeSlotData, setTimeSlotData] = useState<TimeSlotHealthData>({})
+    // This state now holds the 4-hour aggregated summary.
     const [aggregatedData, setAggregatedData] = useState<HealthData>({})
     const [isLoading, setIsLoading] = useState<boolean>(true)
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
@@ -273,7 +270,8 @@ export default function useHealthData() {
             signal?: AbortSignal
         ): Promise<{
             key: string
-            dailyValues: Record<string, number | null>
+            // This now returns values per time slot
+            timeSlotValues: Record<string, number | null>
             aggregatedValue: number | null
         }> => {
             const hasRead = permissions.some(
@@ -281,7 +279,7 @@ export default function useHealthData() {
             )
             if (!hasRead) {
                 Logger.warn(`No read permission for ${type}`)
-                return { key, dailyValues: {}, aggregatedValue: null }
+                return { key, timeSlotValues: {}, aggregatedValue: null }
             }
 
             try {
@@ -307,8 +305,8 @@ export default function useHealthData() {
                     throw new Error(`Aborted reading ${type}`)
                 }
 
-                // Group records by date (YYYY-MM-DD)
-                const recordsByDate: Record<string, any[]> = {}
+                // Group records by 30-minute time slots
+                const recordsByTimeSlot: Record<string, any[]> = {}
                 let totalValue = 0
                 let recordCount = 0
 
@@ -320,14 +318,16 @@ export default function useHealthData() {
 
                     if (!timestamp) return
 
-                    const date = new Date(timestamp)
-                    const dateString = date.toISOString().split('T')[0] // YYYY-MM-DD
+                    // Calculate the start of the 30-minute slot for this record
+                    const slotDate = new Date(timestamp)
+                    slotDate.setMinutes(Math.floor(slotDate.getMinutes() / 30) * 30, 0, 0)
+                    const slotString = slotDate.toISOString()
 
-                    if (!recordsByDate[dateString]) {
-                        recordsByDate[dateString] = []
+                    if (!recordsByTimeSlot[slotString]) {
+                        recordsByTimeSlot[slotString] = []
                     }
 
-                    recordsByDate[dateString].push(rec)
+                    recordsByTimeSlot[slotString].push(rec)
                     // console.log(`Processing record for ${date}:`, rec);
 
                     // Also calculate total for aggregated value
@@ -338,29 +338,29 @@ export default function useHealthData() {
                     }
                 })
 
-                // Calculate daily values based on operation type
-                const dailyValues: Record<string, number | null> = {}
-                Object.entries(recordsByDate).forEach(([date, records]) => {
+                // Calculate values for each time slot based on operation type
+                const timeSlotValues: Record<string, number | null> = {}
+                Object.entries(recordsByTimeSlot).forEach(([slot, records]) => {
                     if (records.length === 0) {
-                        dailyValues[date] = null
+                        timeSlotValues[slot] = null
                         return
                     }
 
-                    const dateTotal = records.reduce((acc, rec) => {
+                    const slotTotal = records.reduce((acc, rec) => {
                         const extracted = extract(rec)
                         return acc + (extracted > 0 ? extracted : 0)
                     }, 0)
 
-                    if (dateTotal <= 0) {
-                        dailyValues[date] = null
+                    if (slotTotal <= 0) {
+                        timeSlotValues[slot] = null
                     } else if (operation === 'average') {
-                        dailyValues[date] = performRound(dateTotal / records.length, key)
+                        timeSlotValues[slot] = performRound(slotTotal / records.length, key)
                     } else {
-                        dailyValues[date] = performRound(dateTotal, key)
+                        timeSlotValues[slot] = performRound(slotTotal, key)
                     }
                 })
 
-                // Calculate aggregated value
+                // Calculate aggregated value over the entire 4-hour period
                 let aggregatedValue: number | null = null
                 if (recordCount > 0 && totalValue > 0) {
                     aggregatedValue =
@@ -371,12 +371,12 @@ export default function useHealthData() {
 
                 return {
                     key,
-                    dailyValues,
+                    timeSlotValues,
                     aggregatedValue,
                 }
             } catch (err) {
                 Logger.warn(`Error reading ${type}: ${err}`)
-                return { key, dailyValues: {}, aggregatedValue: null }
+                return { key, timeSlotValues: {}, aggregatedValue: null }
             }
         },
         []
@@ -384,35 +384,101 @@ export default function useHealthData() {
 
     const fetchHealthData = useCallback(
         async (testDataCategory: MetricCategory) => {
-            if (testDataCategory != 'api') {
-                // Use test data based on the selected category
+            if (testDataCategory !== 'api') {
+                // --- NEW LOGIC FOR STATIC, CIRCULAR TEST DATA ---
+
+                let testData: Record<string, Record<string, number>> = {}
+                // Select the correct set of test data
                 switch (testDataCategory) {
                     case 'sleep':
-                        setDailyData(testDailyData_sleep)
-                        setAggregatedData(testDailyData_sleep_aggregate)
-                        Logger.debug('Using sleep test data')
+                        testData = testTimeSlotData_sleep
                         break
                     case 'training':
-                        setDailyData(testDailyData_training)
-                        setAggregatedData(testDailyData_training_aggregate)
-                        Logger.debug('Using training test data')
+                        testData = testTimeSlotData_training
                         break
                     case 'bp':
-                        setDailyData(testDailyData_BP_fluctuations)
-                        setAggregatedData(testDailyData_BP_fluctuations_aggregate)
-                        Logger.debug('Using BP fluctuations test data')
+                        testData = testTimeSlotData_BP_fluctuations
                         break
                     case 'glucose':
-                        setDailyData(testDailyData_blood_glucose)
-                        setAggregatedData(testDailyData_blood_glucose_aggregate)
-                        Logger.debug('Using blood glucose test data')
+                        testData = testTimeSlotData_blood_glucose
                         break
                     case 'oxygen':
-                        setDailyData(testDailyData_oxygen_saturation)
-                        setAggregatedData(testDailyData_oxygen_saturation_aggregate)
-                        Logger.debug('Using oxygen saturation test data')
+                        testData = testTimeSlotData_oxygen_saturation
                         break
                 }
+                Logger.debug(`Test data: ${JSON.stringify(testData, null, 2)}`)
+
+                const now = new Date()
+                const currentMinutes = now.getHours() * 60 + now.getMinutes()
+                // Round down to the nearest 30-minute slot
+                const endSlotMinutes = Math.floor(currentMinutes / 30) * 30
+                Logger.debug(`currentMinutes: ${currentMinutes}, endSlotMinutes: ${endSlotMinutes}`)
+                const recentSlots: TimeSlotHealthData = {}
+
+                // Get the 8 most recent 30-minute slots (4 hours)
+                for (let i = 1; i <= 8; i++) {
+                    const slotMinutes = endSlotMinutes - i * 30
+
+                    let dayOffset = 0
+                    let adjustedMinutes = slotMinutes
+
+                    // Handle wrapping around to the previous day
+                    if (adjustedMinutes < 0) {
+                        adjustedMinutes += 24 * 60 // Add a day's worth of minutes
+                        dayOffset = -1 // It's yesterday
+                    }
+
+                    const hour = Math.floor(adjustedMinutes / 60)
+                    const minute = adjustedMinutes % 60
+
+                    // Format the key for lookup in our static testData (e.g., "14:30")
+                    const lookupKey = `${hour.toString().padStart(2, '0')}:${minute
+                        .toString()
+                        .padStart(2, '0')}`
+
+                    // Create a full, dynamic ISO timestamp for this slot
+                    const slotDate = new Date()
+                    slotDate.setDate(slotDate.getDate() + dayOffset)
+                    slotDate.setHours(hour, minute, 0, 0) // Set to the precise slot time
+                    const isoTimestamp = slotDate.toISOString()
+
+                    if (testData[lookupKey]) {
+                        recentSlots[isoTimestamp] = testData[lookupKey]
+                    }
+                }
+
+                // --- AGGREGATION LOGIC (largely unchanged) ---
+                const aggregatedSummary: HealthData = {}
+                const metricTotals: Record<string, number> = {}
+                const metricCounts: Record<string, number> = {}
+
+                Object.values(recentSlots).forEach((slotData) => {
+                    Object.entries(slotData).forEach(([metricKey, value]) => {
+                        if (value !== null && value > 0) {
+                            metricTotals[metricKey] = (metricTotals[metricKey] || 0) + value
+                            metricCounts[metricKey] = (metricCounts[metricKey] || 0) + 1
+                        }
+                    })
+                })
+
+                Object.keys(metricTotals).forEach((metricKey) => {
+                    const metricInfo = METRICS.find((m) => m.key === metricKey)
+                    if (metricInfo?.operation === 'average') {
+                        aggregatedSummary[metricKey] = performRound(
+                            metricTotals[metricKey] / metricCounts[metricKey],
+                            metricKey
+                        )
+                    } else {
+                        // 'sum' or undefined
+                        aggregatedSummary[metricKey] = performRound(
+                            metricTotals[metricKey],
+                            metricKey
+                        )
+                    }
+                })
+
+                setTimeSlotData(recentSlots)
+                setAggregatedData(aggregatedSummary)
                 setLastUpdated(new Date())
                 setIsLoading(false)
                 setIsRefreshing(false)
@@ -453,18 +519,29 @@ export default function useHealthData() {
                 setError(null)
 
                 const currentDate = new Date()
-                const weekAgo = new Date(currentDate.getTime() - 6 * 24 * 60 * 60 * 1000)
+
+                // Round down to the previous 30-minute mark
+                const roundedDate = new Date(currentDate)
+                roundedDate.setMinutes(Math.floor(roundedDate.getMinutes() / 30) * 30, 0, 0)
+
+                // Calculate 4 hours before the rounded time
+                const fourHoursAgo = new Date(roundedDate.getTime() - 4 * 60 * 60 * 1000)
+
                 const filter: TimeRangeFilter = {
                     operator: 'between',
-                    startTime: weekAgo.toISOString(),
-                    endTime: currentDate.toISOString(),
+                    startTime: fourHoursAgo.toISOString(),
+                    endTime: roundedDate.toISOString(),
                 }
+
+                Logger.debug(
+                    `Health data time range: ${fourHoursAgo.toLocaleTimeString()} to ${roundedDate.toLocaleTimeString()}`
+                )
 
                 // Process metrics in smaller batches to reduce binding stress
                 const batchSize = 5
                 const results: {
                     key: string
-                    dailyValues: Record<string, number | null>
+                    timeSlotValues: Record<string, number | null>
                     aggregatedValue: number | null
                 }[] = []
 
@@ -490,30 +567,24 @@ export default function useHealthData() {
                     return
                 }
 
-                // Process daily data
-                const dailyHealthData: DailyHealthData = {}
+                // Process time-slotted data
+                const timeSlotHealthData: TimeSlotHealthData = {}
                 const aggregatedHealthData: HealthData = {}
 
-                results.forEach(({ key, dailyValues, aggregatedValue }) => {
-                    // Store aggregated value for backward compatibility
+                results.forEach(({ key, timeSlotValues, aggregatedValue }) => {
+                    // Store aggregated value for the 4-hour summary
                     aggregatedHealthData[key] = aggregatedValue
 
-                    // Store daily values by date
-                    Object.entries(dailyValues).forEach(([date, value]) => {
-                        if (!dailyHealthData[date]) {
-                            dailyHealthData[date] = {}
+                    // Store time-slotted values by timestamp
+                    Object.entries(timeSlotValues).forEach(([timestamp, value]) => {
+                        if (!timeSlotHealthData[timestamp]) {
+                            timeSlotHealthData[timestamp] = {}
                         }
-                        dailyHealthData[date][key] = value
+                        timeSlotHealthData[timestamp][key] = value
                     })
                 })
 
-                // setDailyData(testDailyData_sleep); // for testing purposes
-                // setAggregatedData(testDailyData_sleep_aggregate); // for testing purposes
-
-                Logger.debug(`Daily Health Data: ${testDailyData_sleep}`)
-                Logger.debug(`Aggregated Health Data: ${testDailyData_sleep_aggregate}`)
-
-                setDailyData(dailyHealthData)
+                setTimeSlotData(timeSlotHealthData)
                 setAggregatedData(aggregatedHealthData)
                 setLastUpdated(new Date())
             } catch (err) {
@@ -559,12 +630,12 @@ export default function useHealthData() {
     )
 
     Logger.debug(
-        `Health data: ${Object.keys(dailyData).length} daily entries, ${Object.keys(aggregatedData).length} metrics loaded`
+        `Health data: ${Object.keys(timeSlotData).length} time slot entries, ${Object.keys(aggregatedData).length} metrics loaded`
     )
 
     return {
-        dailyData,
-        data: aggregatedData, // For backward compatibility
+        dailyData: timeSlotData,
+        data: aggregatedData, // For backward compatibility (now 4-hour summary)
         permissions,
         isLoading,
         isRefreshing,

@@ -5,18 +5,19 @@ import { Storage } from '@lib/enums/Storage'
 import { Tokenizer } from '@lib/engine/Tokenizer'
 import { healthCategories, labelMap, unitsMap } from '@lib/constants/HealthMetricsData'
 import { Logger } from './Logger'
+import { MetricCategory } from '@screens/HealthMetricsMenu/HealthMetricsWindow'
 
-// Health data interface matching the useHealthData hook
+// Health data interface (summary for 4 hours)
 interface HealthData {
     [key: string]: number | null
 }
 
-// Daily health data structure
-interface DailyHealthData {
-    [date: string]: HealthData
+// Time-slotted health data structure
+interface TimeSlotHealthData {
+    [timestamp: string]: HealthData
 }
 
-// Formatted health metrics for LLM context
+// Formatted health metrics for LLM context (4-hour summary)
 interface FormattedHealthMetrics {
     prompt: string
     lastUpdated: string
@@ -31,12 +32,12 @@ interface FormattedHealthMetrics {
     }
 }
 
-// Formatted daily health metrics for LLM context
-interface FormattedDailyHealthMetrics {
+// Formatted TIME-SLOTTED health metrics for LLM context
+interface FormattedTimeSlotHealthMetrics {
     prompt: string
     lastUpdated: string
-    dailyData: {
-        [date: string]: {
+    timeSlotData: {
+        [timestamp: string]: {
             [categoryName: string]: {
                 metrics: Array<{
                     name: string
@@ -58,11 +59,11 @@ interface HealthMetricsTokenCache {
 interface HealthMetricsStateProps {
     // Raw health data from the hook
     data: HealthData
-    dailyData: DailyHealthData
+    dailyData: TimeSlotHealthData // This now holds time-slotted data
 
     // Formatted data ready for LLM context
     formattedData: FormattedHealthMetrics | null
-    formattedDailyData: FormattedDailyHealthMetrics | null
+    formattedDailyData: FormattedTimeSlotHealthMetrics | null // This will hold formatted time-slot data
 
     // Token cache for context building
     tokenCache: HealthMetricsTokenCache | null
@@ -73,21 +74,19 @@ interface HealthMetricsStateProps {
     error: string | null
 
     // Selected category for metrics
-    selectedCategory: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'
+    selectedCategory: MetricCategory
 
     // Actions
     updateData: (
         healthData: HealthData,
-        dailyHealthData: DailyHealthData,
+        timeSlotHealthData: TimeSlotHealthData, // Updated parameter name
         timestamp?: Date | string
     ) => void
     clearData: () => void
     setEnabled: (enabled: boolean) => void
     setError: (error: string | null) => void
     getCache: () => HealthMetricsTokenCache
-    setSelectedCategory: (
-        category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'
-    ) => void
+    setSelectedCategory: (category: MetricCategory) => void
 }
 
 // Helper function to normalize timestamp
@@ -98,37 +97,38 @@ const normalizeTimestamp = (timestamp: Date | string): string => {
     return timestamp.toISOString()
 }
 
-// Helper function to format daily health data
-const formatDailyHealthData = (
-    dailyData: DailyHealthData,
+// NEW helper function to format time-slotted health data
+const formatTimeSlotData = (
+    timeSlotData: TimeSlotHealthData,
     timestamp: Date | string
-): FormattedDailyHealthMetrics => {
-    const formattedDailyData: FormattedDailyHealthMetrics['dailyData'] = {}
+): FormattedTimeSlotHealthMetrics => {
+    const formattedTimeSlotData: FormattedTimeSlotHealthMetrics['timeSlotData'] = {}
     const lastUpdated = normalizeTimestamp(timestamp)
 
-    // Process each date
-    Object.entries(dailyData).forEach(([date, dayData]) => {
-        formattedDailyData[date] = {}
+    // Process each time slot
+    Object.entries(timeSlotData).forEach(([ts, slotData]) => {
+        formattedTimeSlotData[ts] = {}
 
-        // Process each category for this date
+        // Process each category for this time slot
         Object.entries(healthCategories).forEach(([categoryKey, categoryInfo]) => {
             const categoryMetrics: Array<{ name: string; value: string; unit: string }> = []
 
             // Process each metric in this category
             categoryInfo.metrics.forEach((metricKey) => {
-                const value = dayData[metricKey]
+                const value = slotData[metricKey]
                 if (value !== null && value !== undefined && value > 0) {
                     const label = labelMap[metricKey] || metricKey
                     const unit = unitsMap[metricKey] || ''
 
-                    // Format the value appropriately (similar to formatHealthData)
                     let formattedValue
                     if (
-                        label === 'Steps' ||
-                        label === 'Heart Rate' ||
-                        label === 'BP Systolic' ||
-                        label === 'BP Diastolic' ||
-                        label === 'Breathing Rate'
+                        [
+                            'Steps',
+                            'Heart Rate',
+                            'BP Systolic',
+                            'BP Diastolic',
+                            'Breathing Rate',
+                        ].includes(label)
                     ) {
                         formattedValue = Math.round(value).toString()
                     } else {
@@ -146,81 +146,72 @@ const formatDailyHealthData = (
 
             // Only add the category if it has metrics
             if (categoryMetrics.length > 0) {
-                formattedDailyData[date][categoryInfo.name] = {
+                formattedTimeSlotData[ts][categoryInfo.name] = {
                     metrics: categoryMetrics,
                 }
             }
         })
 
-        // Remove dates with no metrics
-        if (Object.keys(formattedDailyData[date]).length === 0) {
-            delete formattedDailyData[date]
+        // Remove time slots with no metrics
+        if (Object.keys(formattedTimeSlotData[ts]).length === 0) {
+            delete formattedTimeSlotData[ts]
         }
     })
 
     // Build the prompt text
-    let prompt = `\n\nUser's Daily Health Metrics (Past 7 days)\n\n`
+    let prompt = `\n\nUser's Health Metrics (Past 4 Hours, in 30-minute intervals)\n\n`
 
-    const sortedDates = Object.keys(formattedDailyData).sort()
+    const sortedTimestamps = Object.keys(formattedTimeSlotData).sort(
+        (a, b) => new Date(a).getTime() - new Date(b).getTime()
+    )
 
-    if (sortedDates.length === 0) {
+    if (sortedTimestamps.length === 0) {
         return {
-            prompt: 'No daily health metrics data available.',
+            prompt: 'No recent health metrics data available for the past 4 hours.',
             lastUpdated,
-            dailyData: {},
+            timeSlotData: {},
         }
     }
 
-    sortedDates.forEach((date) => {
-        // Get the date object for comparison
-        const dateObj = new Date(date)
-        const today = new Date()
-        const yesterday = new Date(today)
-        yesterday.setDate(yesterday.getDate() - 1)
+    sortedTimestamps.forEach((ts) => {
+        const startTime = new Date(ts)
+        const endTime = new Date(startTime.getTime() + 30 * 60 * 1000)
 
-        // Check if this date is today or yesterday
-        const isToday = dateObj.toDateString() === today.toDateString()
-        const isYesterday = dateObj.toDateString() === yesterday.toDateString()
-
-        // Format the date and add the label if needed
-        const formattedDate = dateObj.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })
-
-        let dateLabel = formattedDate
-        if (isToday) {
-            dateLabel += ' (Today)'
-        } else if (isYesterday) {
-            dateLabel += ' (Yesterday)'
+        const timeFormat: Intl.DateTimeFormatOptions = {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
         }
 
-        prompt += `**${dateLabel}**\n\n`
+        const timeRangeLabel = `${startTime.toLocaleTimeString(
+            'en-US',
+            timeFormat
+        )} - ${endTime.toLocaleTimeString('en-US', timeFormat)}`
 
-        Object.entries(formattedDailyData[date]).forEach(([categoryName, category]) => {
+        prompt += `**Time Window: ${timeRangeLabel}**\n\n`
+
+        Object.entries(formattedTimeSlotData[ts]).forEach(([categoryName, category]) => {
             prompt += `${categoryName}:\n`
             category.metrics.forEach((metric) => {
-                prompt += `- ${metric.name}: ${metric.value}${metric.unit ? ' ' + metric.unit : ''}\n`
+                prompt += `- ${metric.name}: ${metric.value}${
+                    metric.unit ? ' ' + metric.unit : ''
+                }\n`
             })
             prompt += '\n'
         })
-
-        prompt += '\n'
     })
 
     prompt +=
-        'Note: Use this daily health data contextually when relevant to user queries about health trends, patterns, or progress.'
+        'Note: Use this recent health data contextually when relevant to user queries about their current state, health trends, patterns, or progress.'
 
     return {
         prompt,
         lastUpdated,
-        dailyData: formattedDailyData,
+        timeSlotData: formattedTimeSlotData,
     }
 }
 
-// Helper function to format health data
+// Helper function to format health data (now a 4-hour summary)
 const formatHealthData = (data: HealthData, timestamp: Date | string): FormattedHealthMetrics => {
     const categories: FormattedHealthMetrics['categories'] = {}
     const lastUpdated = normalizeTimestamp(timestamp)
@@ -268,7 +259,7 @@ const formatHealthData = (data: HealthData, timestamp: Date | string): Formatted
         }
     }
 
-    let prompt = `\n\nUser's Weekly Health Metrics Summary (Data from the past 7 days)\n\n`
+    let prompt = `\n\nUser's 4-Hour Health Metrics Summary (Aggregated data from the past 4 hours)\n\n`
 
     const Categories = Object.entries(categories)
 
@@ -281,7 +272,7 @@ const formatHealthData = (data: HealthData, timestamp: Date | string): Formatted
     })
 
     prompt +=
-        'Note: Use this health data contextually when relevant to user queries about health, fitness, or wellness.'
+        'Note: Use this health summary contextually when relevant to user queries about health, fitness, or wellness.'
 
     return {
         prompt: prompt,
@@ -306,7 +297,7 @@ export namespace HealthMetrics {
 
                 updateData: (
                     healthData: HealthData,
-                    dailyHealthData: DailyHealthData,
+                    timeSlotHealthData: TimeSlotHealthData,
                     timestamp = new Date()
                 ) => {
                     const state = get()
@@ -319,16 +310,16 @@ export namespace HealthMetrics {
 
                     const normalizedTimestamp = normalizeTimestamp(timestamp)
                     const formatted = formatHealthData(healthData, normalizedTimestamp)
-                    const formattedDaily = formatDailyHealthData(
-                        dailyHealthData,
+                    const formattedDaily = formatTimeSlotData(
+                        timeSlotHealthData,
                         normalizedTimestamp
                     )
 
                     Logger.debug(
                         `Health metrics data updated: ${JSON.stringify({
-                            metricsCount: Object.keys(healthData).length,
+                            summaryMetricsCount: Object.keys(healthData).length,
                             categoriesCount: Object.keys(formatted.categories).length,
-                            daysCount: Object.keys(dailyHealthData).length,
+                            timeSlotsCount: Object.keys(timeSlotHealthData).length,
                             lastUpdated: normalizedTimestamp,
                         })}`
                     )
@@ -336,7 +327,7 @@ export namespace HealthMetrics {
                     // Clear cache when data is updated to force recalculation
                     set({
                         data: healthData,
-                        dailyData: dailyHealthData,
+                        dailyData: timeSlotHealthData,
                         formattedData: formatted,
                         formattedDailyData: formattedDaily,
                         lastUpdated: normalizedTimestamp,
@@ -374,9 +365,7 @@ export namespace HealthMetrics {
                     set({ error })
                 },
 
-                setSelectedCategory: (
-                    category: 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'
-                ) => {
+                setSelectedCategory: (category: MetricCategory) => {
                     set({ selectedCategory: category })
                 },
 
