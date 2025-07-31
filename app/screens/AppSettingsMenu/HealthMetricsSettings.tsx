@@ -8,6 +8,7 @@ import { useMMKVBoolean } from 'react-native-mmkv'
 
 const HealthMetricsSettings = () => {
     const [healthMetricsToggle, setHealthMetricsToggle] = useMMKVBoolean(AppSettings.HealthMetrics)
+    const [healthMonitoring, setHealthMonitoring] = useMMKVBoolean(AppSettings.HealthMonitoring)
     const { setEnabled, clearData } = HealthMetrics.useHealthMetricsState()
 
     // Handle toggle changes
@@ -30,6 +31,16 @@ const HealthMetricsSettings = () => {
                 onChangeValue={handleToggleChange}
                 description="Allows the app to use your health metrics data to provide personalized chat experience"
             />
+            {healthMetricsToggle && 
+                <View>
+                    <ThemedSwitch
+                        label="Health Monitoring"
+                        value={healthMonitoring}
+                        onChangeValue={setHealthMonitoring}
+                        description=""
+                    />
+                </View>
+            }
         </View>
     )
 }

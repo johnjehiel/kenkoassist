@@ -8,15 +8,14 @@ import DropdownSheet from '@components/input/DropdownSheet'
 import useHealthData from '@lib/hooks/useHealthData'
 import { HealthMetrics } from '@lib/state/HealthMetrics'
 import { healthCategories, labelMap, unitsMap } from '@lib/constants/HealthMetricsData'
+import { analyzeLatestHealthData } from '@lib/services/HealthAnalyzer'
+import { useMMKVBoolean } from 'react-native-mmkv'
+import { AppSettings } from '@lib/constants/GlobalValues'
 
-export type MetricCategory = 'sleep' | 'training' | 'bp' | 'glucose' | 'oxygen' | 'api'
+export type MetricCategory = 'custom' | 'api'
 
 const TEST_DATA_CATEGORIES: { id: MetricCategory; label: string }[] = [
-    { id: 'sleep', label: 'Sleep' },
-    { id: 'training', label: 'Training' },
-    { id: 'bp', label: 'Blood Pressure' },
-    { id: 'glucose', label: 'Glucose' },
-    { id: 'oxygen', label: 'Oxygen' },
+    { id: 'custom', label: 'Custom' },
     { id: 'api', label: 'Default' },
 ]
 
@@ -47,8 +46,13 @@ const HealthMetricsWindow = () => {
 
     const { spacing, color, fontSize } = Theme.useTheme()
 
+    const [healthMonitoring, setHealthMonitoring] = useMMKVBoolean(AppSettings.HealthMonitoring)
+
     // View mode state (daily or aggregate)
     const [viewMode, setViewMode] = useState<'daily' | 'aggregate'>('daily')
+
+    // State for health analysis loading
+    const [isAnalyzing, setIsAnalyzing] = useState(false)
 
     // Use stored category with fallback to 'sleep'
     const [testDataCategory, setLocalTestDataCategory] = useState<MetricCategory>(
@@ -370,6 +374,28 @@ const HealthMetricsWindow = () => {
         [displayDailyData, spacing, color, fontSize, formatMetricValue]
     )
 
+    const handleAnalyzeHealthData = async () => {
+        if (!isEnabled) {
+            Alert.alert(
+                'Feature Disabled',
+                'Health Metrics feature is disabled. Please enable it in Settings to analyze data.',
+                [{ text: 'OK' }]
+            )
+            return
+        }
+
+        setIsAnalyzing(true)
+        try {
+            await analyzeLatestHealthData()
+        } catch (error) {
+            Alert.alert('Analysis Failed', `Failed to analyze health data: ${error}`, [
+                { text: 'OK' },
+            ])
+        } finally {
+            setIsAnalyzing(false)
+        }
+    }
+
     // Early returns for different states
     if (!isEnabled) {
         return (
@@ -682,6 +708,35 @@ const HealthMetricsWindow = () => {
                 iconName="reload1"
                 disabled={isRefreshing}
             />
+
+            {/* Health Analyzer section with heading */}
+            {healthMonitoring && (
+                <View
+                    style={{
+                        backgroundColor: color.neutral._100,
+                        borderRadius: 8,
+                        padding: spacing.sm,
+                        marginTop: spacing.m,
+                        marginBottom: spacing.xs,
+                    }}>
+                    <Text
+                        style={{
+                            color: color.text._100,
+                            fontSize: fontSize.m,
+                            fontWeight: '600',
+                            textAlign: 'center',
+                            marginBottom: spacing.sm,
+                        }}>
+                        Health Analyzer
+                    </Text>
+                    <ThemedButton
+                        label={isAnalyzing ? 'Analyzing...' : 'Analyze Health Data'}
+                        onPress={handleAnalyzeHealthData}
+                        iconName="search1"
+                        disabled={isAnalyzing}
+                    />
+                </View>
+            )}
 
             <View style={{ paddingVertical: spacing.xl3 }} />
         </View>

@@ -1,91 +1,50 @@
-// Helper to generate HH:MM time slots for a 24-hour day
-const generateDayTimeSlots = () => {
-    const slots = []
-    for (let h = 0; h < 24; h++) {
-        for (let m = 0; m < 60; m += 30) {
-            const hour = h.toString().padStart(2, '0')
-            const minute = m.toString().padStart(2, '0')
-            slots.push(`${hour}:${minute}`)
-        }
-    }
-    return slots
-}
-
-const dayTimeSlots = generateDayTimeSlots() // Array of 48 slots ["00:00", "00:30", ...]
-
-// Helper to generate fluctuating data
-const fluctuate = (base: number, fluctuation: number) => base + (Math.random() - 0.5) * fluctuation
-
-// --- New Statically-Timed Test Data ---
-
-export const testTimeSlotData_sleep: Record<string, any> = {}
-dayTimeSlots.forEach((slot) => {
-    // Simulate sleep between 11 PM (23:00) and 7 AM (07:00)
-    const hour = parseInt(slot.split(':')[0])
-    const isAsleep = hour >= 23 || hour < 7
-    testTimeSlotData_sleep[slot] = {
-        sleepSessions: isAsleep ? 0.5 : 0, // 0.5 hours per 30-min slot
-        heartRate: isAsleep ? fluctuate(55, 5) : fluctuate(70, 10),
-        respiratoryRate: isAsleep ? fluctuate(14, 2) : fluctuate(18, 4),
-        totalCalories: fluctuate(40, 10),
-        hydration: 0,
-    }
-})
-
-export const testTimeSlotData_training: Record<string, any> = {}
-dayTimeSlots.forEach((slot) => {
-    // Simulate a workout between 5 PM (17:00) and 6:30 PM (18:30)
-    const hour = parseInt(slot.split(':')[0])
-    const minute = parseInt(slot.split(':')[1])
-    const isTraining = hour === 17 || (hour === 18 && minute < 30)
-    testTimeSlotData_training[slot] = {
-        steps: isTraining ? fluctuate(2000, 500) : fluctuate(100, 50),
-        totalCalories: isTraining ? fluctuate(150, 30) : fluctuate(50, 10),
-        heartRate: isTraining ? fluctuate(140, 20) : fluctuate(75, 10),
-        sleepSessions: 0,
-        bodyTemperature: isTraining ? fluctuate(37.5, 0.5) : fluctuate(36.8, 0.2),
-    }
-})
-
-export const testTimeSlotData_BP_fluctuations: Record<string, any> = {}
-dayTimeSlots.forEach((slot) => {
-    // Simulate a stressful work period between 2 PM (14:00) and 4 PM (16:00)
-    const hour = parseInt(slot.split(':')[0])
-    const isStressed = hour >= 14 && hour < 16
-    testTimeSlotData_BP_fluctuations[slot] = {
-        bloodPressureSystolic: isStressed ? fluctuate(135, 5) : fluctuate(120, 4),
-        bloodPressureDiastolic: isStressed ? fluctuate(88, 4) : fluctuate(80, 3),
-        heartRate: isStressed ? fluctuate(85, 8) : fluctuate(68, 5),
-        steps: fluctuate(50, 20),
-        sleepSessions: 0,
-    }
-})
-
-export const testTimeSlotData_blood_glucose: Record<string, any> = {}
-dayTimeSlots.forEach((slot) => {
-    // Simulate post-lunch glucose spike around 1 PM (13:00)
-    const hour = parseInt(slot.split(':')[0])
-    const postMeal = hour >= 13 && hour < 15 // Spike lasts for 2 hours
-    testTimeSlotData_blood_glucose[slot] = {
-        bloodGlucose: postMeal ? fluctuate(140, 20) : fluctuate(95, 5),
-        totalCalories: hour === 13 ? fluctuate(100, 20) : fluctuate(50, 10),
-        steps: fluctuate(50, 20),
-        sleepSessions: 0,
-        hydration: hour === 13 ? 0.25 : 0.1,
-    }
-})
-
-export const testTimeSlotData_oxygen_saturation: Record<string, any> = {}
-dayTimeSlots.forEach((slot) => {
-    // Simulate a dip during deep sleep, around 3 AM - 5 AM
-    const hour = parseInt(slot.split(':')[0])
-    const isDip = hour >= 3 && hour < 5
-    testTimeSlotData_oxygen_saturation[slot] = {
-        oxygenSaturation: isDip ? fluctuate(94, 1) : fluctuate(98, 1),
-        heartRate: isDip ? fluctuate(58, 5) : fluctuate(68, 5),
-        respiratoryRate: isDip ? fluctuate(14, 2) : fluctuate(16, 2),
-        sleepSessions: isDip ? 0.5 : 0,
-        steps: fluctuate(50, 20),
-        bodyTemperature: fluctuate(36.9, 0.3),
-    }
-})
+export const customHealthData: Record<string, Record<string, number>> = {
+  "00:00":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.6, bloodPressureSystolic: 118, bloodPressureDiastolic: 78, heartRate: 58, respiratoryRate: 13, oxygenSaturation: 95,  bloodGlucose: 90 },
+  "00:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.5, bloodPressureSystolic: 117, bloodPressureDiastolic: 77, heartRate: 58, respiratoryRate: 13, oxygenSaturation: 95,  bloodGlucose: 89 },
+  "01:00":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.5, bloodPressureSystolic: 116, bloodPressureDiastolic: 76, heartRate: 57, respiratoryRate: 12, oxygenSaturation: 94,  bloodGlucose: 88 },
+  "01:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.4, bloodPressureSystolic: 116, bloodPressureDiastolic: 76, heartRate: 57, respiratoryRate: 12, oxygenSaturation: 94,  bloodGlucose: 88 },
+  "02:00":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.4, bloodPressureSystolic: 115, bloodPressureDiastolic: 75, heartRate: 110, respiratoryRate: 14, oxygenSaturation: 93,  bloodGlucose: 87 }, // nocturnal tachycardia anomaly
+  "02:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.4, bloodPressureSystolic: 115, bloodPressureDiastolic: 75, heartRate: 108, respiratoryRate: 14, oxygenSaturation: 93,  bloodGlucose: 87 },
+  "03:00":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.5, bloodPressureSystolic: 116, bloodPressureDiastolic: 76, heartRate: 56, respiratoryRate: 13, oxygenSaturation: 94,  bloodGlucose: 88 },
+  "03:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.6, bloodPressureSystolic: 117, bloodPressureDiastolic: 77, heartRate: 56, respiratoryRate: 13, oxygenSaturation: 94,  bloodGlucose: 89 },
+  "04:00":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.6, bloodPressureSystolic: 118, bloodPressureDiastolic: 78, heartRate: 57, respiratoryRate: 13, oxygenSaturation: 95,  bloodGlucose: 90 },
+  "04:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.7, bloodPressureSystolic: 118, bloodPressureDiastolic: 78, heartRate: 58, respiratoryRate: 14, oxygenSaturation: 95,  bloodGlucose: 90 },
+  "05:00":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.8, bloodPressureSystolic: 119, bloodPressureDiastolic: 79, heartRate: 60, respiratoryRate: 14, oxygenSaturation: 96,  bloodGlucose: 92 },
+  "05:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.8, bloodPressureSystolic: 120, bloodPressureDiastolic: 80, heartRate: 62, respiratoryRate: 15, oxygenSaturation: 96,  bloodGlucose: 93 },
+  "06:00":  { steps: 650, distance: 510.0, bodyTemperature: 36.9, bloodPressureSystolic: 122, bloodPressureDiastolic: 82, heartRate: 75, respiratoryRate: 17, oxygenSaturation: 97,  bloodGlucose: 95 },
+  "06:30":  { steps: 720, distance: 580.0, bodyTemperature: 36.9, bloodPressureSystolic: 123, bloodPressureDiastolic: 82, heartRate: 78, respiratoryRate: 18, oxygenSaturation: 97,  bloodGlucose: 96 },
+  "07:00":  { steps: 300, distance: 240.0, bodyTemperature: 36.8, bloodPressureSystolic: 122, bloodPressureDiastolic: 81, heartRate: 70, respiratoryRate: 16, oxygenSaturation: 97,  bloodGlucose: 100 },
+  "07:30":  { steps: 150, distance: 120.0, bodyTemperature: 36.8, bloodPressureSystolic: 121, bloodPressureDiastolic: 80, heartRate: 68, respiratoryRate: 15, oxygenSaturation: 97,  bloodGlucose: 102 },
+  "08:00":  { steps: 100, distance: 80.0,  bodyTemperature: 36.7, bloodPressureSystolic: 120, bloodPressureDiastolic: 80, heartRate: 67, respiratoryRate: 15, oxygenSaturation: 97,  bloodGlucose: 140 }, // post‐breakfast glucose spike
+  "08:30":  { steps: 120, distance: 95.0,  bodyTemperature: 36.7, bloodPressureSystolic: 120, bloodPressureDiastolic: 80, heartRate: 68, respiratoryRate: 15, oxygenSaturation: 97,  bloodGlucose: 145 },
+  "09:00":  { steps: 200, distance: 160.0, bodyTemperature: 36.8, bloodPressureSystolic: 121, bloodPressureDiastolic: 81, heartRate: 72, respiratoryRate: 16, oxygenSaturation: 97,  bloodGlucose: 100 },
+  "09:30":  { steps: 180, distance: 145.0, bodyTemperature: 36.8, bloodPressureSystolic: 121, bloodPressureDiastolic: 80, heartRate: 70, respiratoryRate: 16, oxygenSaturation: 97,  bloodGlucose: 98 },
+  "10:00":  { steps: 150, distance: 120.0, bodyTemperature: 36.8, bloodPressureSystolic: 120, bloodPressureDiastolic: 80, heartRate: 68, respiratoryRate: 15, oxygenSaturation: 97,  bloodGlucose: 95 },
+  "10:30":  { steps: 170, distance: 135.0, bodyTemperature: 36.8, bloodPressureSystolic: 120, bloodPressureDiastolic: 80, heartRate: 70, respiratoryRate: 15, oxygenSaturation: 97,  bloodGlucose: 95 },
+  "11:00":  { steps: 160, distance: 128.0, bodyTemperature: 36.9, bloodPressureSystolic: 121, bloodPressureDiastolic: 81, heartRate: 72, respiratoryRate: 16, oxygenSaturation: 97,  bloodGlucose: 94 },
+  "11:30":  { steps: 140, distance: 112.0, bodyTemperature: 36.9, bloodPressureSystolic: 121, bloodPressureDiastolic: 81, heartRate: 71, respiratoryRate: 16, oxygenSaturation: 97,  bloodGlucose: 93 },
+  "12:00":  { steps: 320, distance: 256.0, bodyTemperature: 36.9, bloodPressureSystolic: 122, bloodPressureDiastolic: 82, heartRate: 75, respiratoryRate: 17, oxygenSaturation: 97,  bloodGlucose: 100 },
+  "12:30":  { steps: 340, distance: 270.0, bodyTemperature: 36.9, bloodPressureSystolic: 122, bloodPressureDiastolic: 82, heartRate: 76, respiratoryRate: 17, oxygenSaturation: 97,  bloodGlucose: 102 },
+  "13:00":  { steps: 100, distance: 80.0,  bodyTemperature: 37.0, bloodPressureSystolic: 123, bloodPressureDiastolic: 83, heartRate: 78, respiratoryRate: 18, oxygenSaturation: 97,  bloodGlucose: 150 }, // post‐lunch spike
+  "13:30":  { steps: 120, distance: 95.0,  bodyTemperature: 37.0, bloodPressureSystolic: 123, bloodPressureDiastolic: 83, heartRate: 78, respiratoryRate: 18, oxygenSaturation: 97,  bloodGlucose: 155 },
+  "14:00":  { steps: 90,  distance: 70.0,  bodyTemperature: 36.9, bloodPressureSystolic: 135, bloodPressureDiastolic: 88, heartRate: 85, respiratoryRate: 20, oxygenSaturation: 96,  bloodGlucose: 140 }, // stress period
+  "14:30":  { steps: 80,  distance: 65.0,  bodyTemperature: 36.9, bloodPressureSystolic: 136, bloodPressureDiastolic: 89, heartRate: 86, respiratoryRate: 21, oxygenSaturation: 96,  bloodGlucose: 138 },
+  "15:00":  { steps: 100, distance: 80.0,  bodyTemperature: 36.8, bloodPressureSystolic: 130, bloodPressureDiastolic: 85, heartRate: 82, respiratoryRate: 19, oxygenSaturation: 96,  bloodGlucose: 120 },
+  "15:30":  { steps: 110, distance: 90.0,  bodyTemperature: 36.8, bloodPressureSystolic: 128, bloodPressureDiastolic: 84, heartRate: 80, respiratoryRate: 19, oxygenSaturation: 97,  bloodGlucose: 115 },
+  "16:00":  { steps: 100, distance: 80.0,  bodyTemperature: 36.8, bloodPressureSystolic: 125, bloodPressureDiastolic: 83, heartRate: 78, respiratoryRate: 18, oxygenSaturation: 97,  bloodGlucose: 110 },
+  "16:30":  { steps: 120, distance: 95.0,  bodyTemperature: 36.8, bloodPressureSystolic: 124, bloodPressureDiastolic: 82, heartRate: 78, respiratoryRate: 18, oxygenSaturation: 97,  bloodGlucose: 108 },
+  "17:00":  { steps: 2200, distance: 1750.0, bodyTemperature: 37.5, bloodPressureSystolic: 130, bloodPressureDiastolic: 85, heartRate: 140, respiratoryRate: 22, oxygenSaturation: 97,  bloodGlucose: 110 }, // evening workout
+  "17:30":  { steps: 2400, distance: 1850.0, bodyTemperature: 37.6, bloodPressureSystolic: 132, bloodPressureDiastolic: 86, heartRate: 145, respiratoryRate: 23, oxygenSaturation: 97,  bloodGlucose: 112 },
+  "18:00":  { steps: 1800, distance: 1400.0, bodyTemperature: 37.2, bloodPressureSystolic: 128, bloodPressureDiastolic: 84, heartRate: 120, respiratoryRate: 20, oxygenSaturation: 97,  bloodGlucose: 105 },
+  "18:30":  { steps: 900, distance: 700.0,  bodyTemperature: 37.0, bloodPressureSystolic: 126, bloodPressureDiastolic: 83, heartRate: 100, respiratoryRate: 18, oxygenSaturation: 97,  bloodGlucose: 100 },
+  "19:00":  { steps: 100, distance: 80.0,  bodyTemperature: 36.9, bloodPressureSystolic: 124, bloodPressureDiastolic: 82, heartRate: 75, respiratoryRate: 16, oxygenSaturation: 97,  bloodGlucose: 140 }, // post‐dinner spike
+  "19:30":  { steps: 80,  distance: 65.0,  bodyTemperature: 36.9, bloodPressureSystolic: 124, bloodPressureDiastolic: 82, heartRate: 74, respiratoryRate: 16, oxygenSaturation: 97,  bloodGlucose: 145 },
+  "20:00":  { steps: 50,  distance: 40.0,  bodyTemperature: 36.8, bloodPressureSystolic: 123, bloodPressureDiastolic: 81, heartRate: 70, respiratoryRate: 15, oxygenSaturation: 97,  bloodGlucose: 120 },
+  "20:30":  { steps: 40,  distance: 30.0,  bodyTemperature: 36.8, bloodPressureSystolic: 123, bloodPressureDiastolic: 81, heartRate: 68, respiratoryRate: 15, oxygenSaturation: 97,  bloodGlucose: 115 },
+  "21:00":  { steps: 20,  distance: 15.0,  bodyTemperature: 36.7, bloodPressureSystolic: 122, bloodPressureDiastolic: 80, heartRate: 65, respiratoryRate: 14, oxygenSaturation: 97,  bloodGlucose: 105 },
+  "21:30":  { steps: 10,  distance: 8.0,   bodyTemperature: 36.7, bloodPressureSystolic: 121, bloodPressureDiastolic: 80, heartRate: 62, respiratoryRate: 14, oxygenSaturation: 97,  bloodGlucose: 100 },
+  "22:00":  { steps: 5,   distance: 4.0,   bodyTemperature: 36.6, bloodPressureSystolic: 120, bloodPressureDiastolic: 79, heartRate: 60, respiratoryRate: 13, oxygenSaturation: 96,  bloodGlucose: 95 },
+  "22:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.6, bloodPressureSystolic: 119, bloodPressureDiastolic: 79, heartRate: 59, respiratoryRate: 13, oxygenSaturation: 96,  bloodGlucose: 93 },
+  "23:00":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.6, bloodPressureSystolic: 118, bloodPressureDiastolic: 78, heartRate: 58, respiratoryRate: 13, oxygenSaturation: 96,  bloodGlucose: 92 },
+  "23:30":  { steps: 0,   distance: 0.0,   bodyTemperature: 36.6, bloodPressureSystolic: 118, bloodPressureDiastolic: 78, heartRate: 58, respiratoryRate: 13, oxygenSaturation: 96,  bloodGlucose: 91 }
+};

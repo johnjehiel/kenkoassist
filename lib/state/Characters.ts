@@ -24,6 +24,7 @@ import { Logger } from './Logger'
 import { mmkvStorage } from '../storage/MMKV'
 import { getPngChunkText } from '../utils/PNG'
 import { Asset } from 'expo-asset'
+import { HealthAnalysis } from '@lib/constants/SystemPrompts'
 
 export type CharInfo = {
     name: string
@@ -681,6 +682,42 @@ export namespace Characters {
 
     export const getImageDir = (imageId: number) => {
         return `${FS.documentDirectory}characters/${imageId}.png`
+    }
+
+    export const createAlertBotCard = async () => {
+        const existingCard = await database.query.characters.findFirst({
+            where: eq(characters.name, 'HealthAlert Bot'),
+        })
+
+        if (existingCard) {
+            Logger.info('HealthAlert Bot character already exists.')
+            return existingCard.id
+        }
+
+        Logger.info('Creating HealthAlert Bot character...')
+        const cardV2 = createBlankV2Card('HealthAlert Bot', {
+            description: HealthAnalysis.SystemPrompt,
+            first_mes: '',
+            personality: 'Helpful, vigilant, and precise.',
+            scenario: '',
+            mes_example: '',
+        })
+
+        try {
+            const [newCard] = await database
+                .insert(characters)
+                .values({
+                    type: 'character',
+                    ...cardV2.data,
+                })
+                .returning()
+
+            Logger.info(`HealthAlert Bot character created with ID: ${newCard.id}`)
+            return newCard.id
+        } catch (error) {
+            Logger.error(`Failed to create HealthAlert Bot character: ${error}`)
+            return undefined
+        }
     }
 
     export const createDefaultCard = async () => {

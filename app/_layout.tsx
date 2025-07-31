@@ -7,7 +7,7 @@ import { setOptions } from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { MenuProvider } from 'react-native-popup-menu'
 import * as TaskManager from 'expo-task-manager'
-import * as BackgroundFetch from 'expo-background-task'
+import * as BackgroundTask from 'expo-background-task'
 import { HEALTH_MONITOR_TASK } from '@lib/services/HealthMonitorTask'
 import { useEffect } from 'react'
 import { Logger } from '@lib/state/Logger'
@@ -24,13 +24,13 @@ export const updateHealthMonitorTaskStatus = async () => {
             Logger.info('Health monitor task already registered.')
             return
         }
-        await BackgroundFetch.registerTaskAsync(HEALTH_MONITOR_TASK, {
-            minimumInterval: 30 * 60, // 30 minutes
+        await BackgroundTask.registerTaskAsync(HEALTH_MONITOR_TASK, {
+            minimumInterval: 30,
         })
         Logger.info('Health monitor task registered.')
     } else {
         if (isRegistered) {
-            await BackgroundFetch.unregisterTaskAsync(HEALTH_MONITOR_TASK)
+            await BackgroundTask.unregisterTaskAsync(HEALTH_MONITOR_TASK)
             Logger.info('Health monitor task unregistered.')
         }
     }
@@ -40,6 +40,10 @@ SplashScreen.preventAutoHideAsync()
 setOptions({
     fade: true,
     duration: 350,
+})
+
+TaskManager.getRegisteredTasksAsync().then((tasks) => {
+    Logger.debug(`Registered tasks: ${JSON.stringify(tasks, null, 2)}`)
 })
 
 const Layout = () => {

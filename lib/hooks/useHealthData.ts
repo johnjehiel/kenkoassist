@@ -5,11 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Platform } from 'react-native'
 import { Logger } from '@lib/state/Logger'
 import {
-    testTimeSlotData_blood_glucose,
-    testTimeSlotData_BP_fluctuations,
-    testTimeSlotData_oxygen_saturation,
-    testTimeSlotData_sleep,
-    testTimeSlotData_training,
+    customHealthData
 } from '@lib/constants/TestData'
 import { HealthMetrics } from '@lib/state/HealthMetrics'
 import { MetricCategory } from '@screens/HealthMetricsMenu/HealthMetricsWindow'
@@ -387,26 +383,8 @@ export default function useHealthData() {
             if (testDataCategory !== 'api') {
                 // --- NEW LOGIC FOR STATIC, CIRCULAR TEST DATA ---
 
-                let testData: Record<string, Record<string, number>> = {}
-                // Select the correct set of test data
-                switch (testDataCategory) {
-                    case 'sleep':
-                        testData = testTimeSlotData_sleep
-                        break
-                    case 'training':
-                        testData = testTimeSlotData_training
-                        break
-                    case 'bp':
-                        testData = testTimeSlotData_BP_fluctuations
-                        break
-                    case 'glucose':
-                        testData = testTimeSlotData_blood_glucose
-                        break
-                    case 'oxygen':
-                        testData = testTimeSlotData_oxygen_saturation
-                        break
-                }
-                Logger.debug(`Test data: ${JSON.stringify(testData, null, 2)}`)
+                let testData: Record<string, Record<string, number>> = customHealthData
+                // Logger.debug(`Test data: ${JSON.stringify(testData, null, 2)}`)
 
                 const now = new Date()
                 const currentMinutes = now.getHours() * 60 + now.getMinutes()
