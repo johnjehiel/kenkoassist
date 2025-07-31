@@ -6,7 +6,7 @@ export async function registerForPushNotificationsAsync() {
     if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('KenkoAssist', {
             name: 'KenkoAssist',
-            importance: Notifications.AndroidImportance.DEFAULT,
+            importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [250, 0, 250, 250],
             lightColor: '#FF231F7C',
         })

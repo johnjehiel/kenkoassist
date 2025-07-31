@@ -7,14 +7,17 @@ import { View } from 'react-native'
 import { useMMKVBoolean } from 'react-native-mmkv'
 
 const NotificationSettings = () => {
-    const [notificationOnGenerate, setNotificationOnGenerate] = useMMKVBoolean(
-        AppSettings.NotifyOnComplete
+    const [notificationToggle, setNotificationToggle] = useMMKVBoolean(
+        AppSettings.Notification
     )
     const [notificationSound, setNotificationSound] = useMMKVBoolean(
         AppSettings.PlayNotificationSound
     )
-    const [notificationVibrate, setNotificationVibrate] = useMMKVBoolean(
-        AppSettings.VibrateNotification
+    // const [notificationVibrate, setNotificationVibrate] = useMMKVBoolean(
+    //     AppSettings.VibrateNotification
+    // )
+    const [NotifyOnComplete, setNotifyOnComplete] = useMMKVBoolean(
+        AppSettings.NotifyOnComplete
     )
     const [showNotificationText, setShowNotificationText] = useMMKVBoolean(
         AppSettings.ShowNotificationText
@@ -25,21 +28,25 @@ const NotificationSettings = () => {
             <SectionTitle>Notifications</SectionTitle>
             <ThemedSwitch
                 label="Enable Notifications"
-                value={notificationOnGenerate}
+                value={notificationToggle}
                 onChangeValue={async (value) => {
                     if (!value) {
-                        setNotificationOnGenerate(false)
+                        setNotificationToggle(false)
+                        setNotificationSound(false)
+                        // setNotificationVibrate(false)
+                        setNotifyOnComplete(false)
+                        setShowNotificationText(false)
                         return
                     }
 
                     const granted = await registerForPushNotificationsAsync()
                     if (granted) {
-                        setNotificationOnGenerate(true)
+                        setNotificationToggle(true)
                     }
                 }}
                 description="Sends notifications when the app is in the background"
             />
-            {notificationOnGenerate && (
+            {notificationToggle && (
                 <View>
                     <ThemedSwitch
                         label="Notification Sound"
@@ -47,20 +54,35 @@ const NotificationSettings = () => {
                         onChangeValue={setNotificationSound}
                         description=""
                     />
-
-                    <ThemedSwitch
+                    
+                    {/* <ThemedSwitch
                         label="Notification Vibration"
                         value={notificationVibrate}
                         onChangeValue={setNotificationVibrate}
                         description=""
-                    />
-
+                    /> */}
                     <ThemedSwitch
-                        label="Show Text In Notification"
-                        value={showNotificationText}
-                        onChangeValue={setShowNotificationText}
-                        description="Shows generated messages in notifications"
+                        label="Notify On Response Completion"
+                        value={NotifyOnComplete}
+                        onChangeValue={(value) =>{
+                            if (!value) {
+                                setNotifyOnComplete(false)
+                                setShowNotificationText(false)
+                                return
+                            }
+                            setNotifyOnComplete(true)
+                        }}
+                        description="Sends a notification when the model finishes generating a response"
                     />
+                    {
+                        NotifyOnComplete &&
+                        <ThemedSwitch
+                            label="Show Text In Notification"
+                            value={showNotificationText}
+                            onChangeValue={setShowNotificationText}
+                            description="Shows generated messages in notifications"
+                        />
+                    }
                 </View>
             )}
         </View>

@@ -9,8 +9,19 @@ import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator'
 import { SplashScreen } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import * as Notifications from 'expo-notifications';
+import { AppSettings } from '@lib/constants/GlobalValues'
+import { mmkv } from '@lib/storage/MMKV'
 
 import migrations from '../db/migrations/migrations'
+
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: !!mmkv.getBoolean(AppSettings.Notification),
+        shouldPlaySound: !!mmkv.getBoolean(AppSettings.PlayNotificationSound),
+        shouldSetBadge: false,
+    }),
+})
 
 const Home = () => {
     const { color } = Theme.useTheme()

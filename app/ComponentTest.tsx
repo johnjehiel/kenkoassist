@@ -7,8 +7,10 @@ import ThemedSlider from '@components/input/ThemedSlider'
 import ThemedSwitch from '@components/input/ThemedSwitch'
 import ThemedTextInput from '@components/input/ThemedTextInput'
 import Accordion from '@components/views/Accordion'
+import { Theme } from '@lib/theme/ThemeManager'
 import React, { useState } from 'react'
 import { ScrollView, Text, View } from 'react-native'
+import * as Notifications from 'expo-notifications'
 
 const selectorData = [
     { label: 'Item 0', value: '1' },
@@ -23,6 +25,17 @@ const selectorData = [
 ]
 
 const buttonVariants = ['primary', 'secondary', 'tertiary', 'critical', 'disabled']
+
+const handleNotification = async () => {
+    await Notifications.scheduleNotificationAsync({
+        content: {
+            title: 'Test Title',
+            body: 'Test Body',
+            badge: 1,
+        },
+        trigger: null,
+    })
+}
 
 const ComponentTest = () => {
     const [selected, setSelected] = useState<(typeof selectorData)[0]>(selectorData[0])
@@ -75,8 +88,14 @@ const ComponentTest = () => {
                 onChangeValue={setSelectedM}
                 labelExtractor={(item) => item.label}
             />
+            <ThemedButton
+                variant="primary"
+                label="Test Notification"
+                onPress={handleNotification}
+            />
         </ScrollView>
     )
 }
 
 export default ComponentTest
+

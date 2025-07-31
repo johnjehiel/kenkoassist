@@ -15,9 +15,10 @@ export enum AppSettings {
     PrintContext = 'printcontext',
     CreateDefaultCard = 'createdefaultcard',
     BypassContextLength = 'bypasscontextlength',
-    NotifyOnComplete = 'notifyOnComplete',
+    Notification = 'Notification',
     PlayNotificationSound = 'notifySound',
-    VibrateNotification = 'notifyvibrate',
+    // VibrateNotification = 'notifyvibrate', // Yet to be implemented
+    NotifyOnComplete = 'NotifyOnComplete',
     ShowNotificationText = 'shownotificationtext',
     LocallyAuthenticateUser = 'localauthuser',
     UnlockOrientation = 'unlockorientation',
@@ -29,7 +30,6 @@ export enum AppSettings {
     AutoLoadUser = 'autoloaduser',
     HealthMetrics = 'healthmetrics',
     HealthMonitoring = 'healthmonitoring',
-    HealthMonitoringUseSeparateModel = 'healthmonitoringuseseparatemodel',
 }
 
 /**
@@ -48,9 +48,10 @@ export const AppSettingsDefault: Record<AppSettings, boolean> = {
     [AppSettings.PrintContext]: false,
     [AppSettings.CreateDefaultCard]: true,
     [AppSettings.BypassContextLength]: false,
+    [AppSettings.Notification]: true,
+    [AppSettings.PlayNotificationSound]: true,
+    // [AppSettings.VibrateNotification]: true,
     [AppSettings.NotifyOnComplete]: false,
-    [AppSettings.PlayNotificationSound]: false,
-    [AppSettings.VibrateNotification]: false,
     [AppSettings.LocallyAuthenticateUser]: false,
     [AppSettings.ShowNotificationText]: false,
     [AppSettings.UnlockOrientation]: false,
@@ -62,7 +63,6 @@ export const AppSettingsDefault: Record<AppSettings, boolean> = {
     [AppSettings.AutoLoadUser]: true,
     [AppSettings.HealthMetrics]: false,
     [AppSettings.HealthMonitoring]: false,
-    [AppSettings.HealthMonitoringUseSeparateModel]: false,
 }
 
 export const CLAUDE_VERSION = '2023-06-01'

@@ -98,20 +98,10 @@ export const sendGenerateCompleteNotification = async () => {
         ? Chats.useChatState.getState().buffer?.data?.trim()
         : 'KenkoAssist has finished a response.'
 
-    Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-            shouldShowAlert: false,
-            shouldPlaySound: false,
-            shouldSetBadge: false,
-        }),
-    })
-
     Notifications.scheduleNotificationAsync({
         content: {
             title: notificationTitle,
             body: notificationText,
-            sound: !!mmkv.getBoolean(AppSettings.PlayNotificationSound),
-            vibrate: mmkv.getBoolean(AppSettings.VibrateNotification) ? [250, 125, 250] : undefined,
             badge: 0,
         },
         trigger: null,
