@@ -59,4 +59,3 @@ tasks/
 # for now
 app/Embedding.tsx
 eas.json.example
-lib/engine/Local/index.ts
