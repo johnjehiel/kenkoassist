@@ -4,9 +4,7 @@ import { TimeRangeFilter } from 'react-native-health-connect/lib/typescript/type
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Platform } from 'react-native'
 import { Logger } from '@lib/state/Logger'
-import {
-    customHealthData
-} from '@lib/constants/TestData'
+import { customHealthData } from '@lib/constants/TestData'
 import { HealthMetrics } from '@lib/state/HealthMetrics'
 import { MetricCategory } from '@screens/HealthMetricsMenu/HealthMetricsWindow'
 
@@ -588,8 +586,8 @@ export default function useHealthData() {
         if (permissions.length > 0 && !fetchStateRef.current.isFetching) {
             // Get the stored category from HealthMetrics state
             const { selectedCategory } = HealthMetrics.useHealthMetricsState.getState()
-            // Use the stored category or fall back to 'sleep' if not available
-            fetchHealthData(selectedCategory || 'sleep')
+            // Use the stored category or fall back to 'custom' if not available
+            fetchHealthData(selectedCategory || 'custom')
         }
     }, [permissions, fetchHealthData])
 

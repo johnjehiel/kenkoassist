@@ -3,7 +3,7 @@ import { Model } from '@lib/engine/Local/Model'
 import { generateResponse } from '@lib/engine/Inference'
 import { useAppModeState } from '@lib/state/AppMode'
 import { Characters } from '@lib/state/Characters'
-import { Chats } from '@lib/state/Chat'
+import { Chats, useInference } from '@lib/state/Chat'
 import { HealthMetrics } from '@lib/state/HealthMetrics'
 import { Logger } from '@lib/state/Logger'
 import * as Notifications from 'expo-notifications'
@@ -93,45 +93,32 @@ export const analyzeLatestHealthData = async () => {
         // Generate response for alert chat bot
         await generateResponse(swipeId)
 
-        // Wait for the response to be fully saved and reload the chat
-        Logger.debug('Waiting for response generation to complete...')
+        // wait for the context to get built and then clear prompt
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        await Chats.useChatState.getState().deleteEntry(0) // Assuming the prompt is always the first message
+        Logger.debug('Prompt message deleted from chat history.')
+
+        const waitForGenerationToComplete = () => {
+            // Return a new Promise. We will resolve it manually inside the subscriber.
+            return new Promise<void>((resolve) => {
+                // Subscribe to the store and get the unsubscribe function.
+                const unsubscribe = useInference.subscribe((state) => {
+                    // This callback function runs EVERY time the state in useInference changes.
+                    if (!state.nowGenerating) {
+                        Logger.debug('Generation has completed. Proceeding...')
+                        unsubscribe() // IMPORTANT: Clean up the listener to prevent memory leaks.
+                        resolve() // Resolve the promise to allow the awaited code to continue.
+                    }
+                })
+            })
+        }
+
+        Logger.debug('Waiting for generation to complete...')
+        await waitForGenerationToComplete()
+
+        // Reload the chat state
+        await Chats.useChatState.getState().load(chatId)
         let response = Chats.useChatState.getState()?.data
-        let retryCount = 0
-        const maxRetries = 15
-        let delay = appMode === 'local' ? 10000 : 3000 // 10 seconds for local, 3 seconds for remote
-
-        // Check if response content is available, if not, wait and reload
-        while (retryCount < maxRetries) {
-            if (response?.messages && response.messages.length > 0) {
-                const lastMessage = response.messages[response.messages.length - 1]
-                const currentSwipe = lastMessage?.swipes?.[lastMessage.swipe_id]
-
-                if (currentSwipe?.swipe && currentSwipe.swipe.trim() !== '') {
-                    Logger.debug('Response content found, proceeding with analysis')
-                    break
-                }
-            }
-
-            retryCount++
-            Logger.debug(`Response not ready, waiting... (attempt ${retryCount}/${maxRetries})`)
-            await new Promise((resolve) => setTimeout(resolve, delay * (retryCount + 1))) // Exponential backoff
-
-            // delete prompt message entry after first timeout delay as
-            // context and payload would have already been built by then
-            if (retryCount === 1) {
-                await Chats.useChatState.getState().deleteEntry(0) // Assuming the prompt is always the first message
-                Logger.debug('Prompt message deleted from chat history.')
-            }
-
-            // Reload the chat state
-            await Chats.useChatState.getState().load(chatId)
-            response = Chats.useChatState.getState()?.data
-        }
-
-        if (retryCount >= maxRetries) {
-            Logger.error('Response generation timed out after waiting for content to be saved')
-            return
-        }
 
         // Analyze the response for anomalies
         Logger.debug(`Response data structure after reload: ${JSON.stringify(response, null, 2)}`)
@@ -145,12 +132,6 @@ export const analyzeLatestHealthData = async () => {
                     Logger.error('No messages found in chat response.')
                     return
                 }
-
-                // if (messagesLength >= 2) {
-                //     // Delete the prompt message entry
-                //     await Chats.useChatState.getState().deleteEntry(messagesLength - 2)
-                //     Logger.debug('Prompt message deleted from chat history.')
-                // }
 
                 const lastMessage = response.messages[messagesLength - 1]
                 if (!lastMessage || !lastMessage.swipes || lastMessage.swipes.length === 0) {
@@ -202,16 +183,6 @@ export const analyzeLatestHealthData = async () => {
                 }
 
                 const { is_anomaly = false, justification = rawResponse } = parsedResponse
-
-                // Update the chat entry with the parsed/formatted response
-                const lastMessageIndex = messagesLength - 1
-
-                // directly update
-                // await Chats.useChatState.getState().updateEntry(lastMessageIndex, justification, {
-                //     updateFinished: true,
-                //     verifySwipeId: swipeId,
-                //     resetTimings: true,
-                // })
 
                 // set buffer (with startGenerating() already called)
                 Chats.useChatState.getState().setBuffer({ data: justification })

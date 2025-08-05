@@ -46,17 +46,15 @@ const HealthMetricsWindow = () => {
 
     const { spacing, color, fontSize } = Theme.useTheme()
 
-    const [healthMonitoring, setHealthMonitoring] = useMMKVBoolean(AppSettings.HealthMonitoring)
-
     // View mode state (daily or aggregate)
     const [viewMode, setViewMode] = useState<'daily' | 'aggregate'>('daily')
 
     // State for health analysis loading
     const [isAnalyzing, setIsAnalyzing] = useState(false)
 
-    // Use stored category with fallback to 'sleep'
+    // Use stored category with fallback to 'custom'
     const [testDataCategory, setLocalTestDataCategory] = useState<MetricCategory>(
-        storedCategory || 'sleep'
+        storedCategory || 'custom'
     )
 
     // Sync with stored category if it changes
@@ -710,33 +708,31 @@ const HealthMetricsWindow = () => {
             />
 
             {/* Health Analyzer section with heading */}
-            {healthMonitoring && (
-                <View
+            <View
+                style={{
+                    backgroundColor: color.neutral._100,
+                    borderRadius: 8,
+                    padding: spacing.sm,
+                    marginTop: spacing.m,
+                    marginBottom: spacing.xs,
+                }}>
+                <Text
                     style={{
-                        backgroundColor: color.neutral._100,
-                        borderRadius: 8,
-                        padding: spacing.sm,
-                        marginTop: spacing.m,
-                        marginBottom: spacing.xs,
+                        color: color.text._100,
+                        fontSize: fontSize.m,
+                        fontWeight: '600',
+                        textAlign: 'center',
+                        marginBottom: spacing.sm,
                     }}>
-                    <Text
-                        style={{
-                            color: color.text._100,
-                            fontSize: fontSize.m,
-                            fontWeight: '600',
-                            textAlign: 'center',
-                            marginBottom: spacing.sm,
-                        }}>
-                        Health Analyzer
-                    </Text>
-                    <ThemedButton
-                        label={isAnalyzing ? 'Analyzing...' : 'Analyze Health Data'}
-                        onPress={handleAnalyzeHealthData}
-                        iconName="search1"
-                        disabled={isAnalyzing}
-                    />
-                </View>
-            )}
+                    Health Analyzer
+                </Text>
+                <ThemedButton
+                    label={isAnalyzing ? 'Analyzing...' : 'Analyze Health Data'}
+                    onPress={handleAnalyzeHealthData}
+                    iconName="search1"
+                    disabled={isAnalyzing}
+                />
+            </View>
 
             <View style={{ paddingVertical: spacing.xl3 }} />
         </View>

@@ -293,7 +293,7 @@ export namespace HealthMetrics {
                 lastUpdated: null,
                 isEnabled: false,
                 error: null,
-                selectedCategory: 'sleep', // Default category
+                selectedCategory: 'custom', // Default category
 
                 updateData: (
                     healthData: HealthData,
