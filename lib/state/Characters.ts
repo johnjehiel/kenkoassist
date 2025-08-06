@@ -371,9 +371,9 @@ export namespace Characters {
                 type: 'user' | 'character' = 'character'
             ) => {
                 const { data } = createBlankV2Card(name)
-                
+
                 if (type === 'character') {
-                    data.first_mes = `Hi, How can I help you?`;
+                    data.first_mes = `Hi, How can I help you?`
                 }
 
                 const [{ id }, ..._] = await database
@@ -653,6 +653,8 @@ export namespace Characters {
             return
         }
 
+        Logger.debug(`Card data found: ${JSON.stringify(card)}`)
+
         await createCharacterFromV2JSON(card, uri)
     }
 
@@ -721,18 +723,29 @@ export namespace Characters {
     }
 
     export const createDefaultCard = async () => {
-        const filename = 'aibot'
-        const pngName = filename + '.png'
-        const resName = filename + '.raw'
-        const cardDefaultDir = `${FS.documentDirectory}appAssets/${pngName}`
+        try {
+            const filename = 'aibot'
+            const pngName = filename + '.png'
+            const cardDefaultDir = `${FS.documentDirectory}appAssets/${pngName}`
 
-        const fileinfo = await FS.getInfoAsync(cardDefaultDir)
-        if (!fileinfo.exists) {
-            const [asset] = await Asset.loadAsync(require('./../../assets/models/aibot.png'))
-            await asset.downloadAsync()
-            if (asset.localUri) await FS.copyAsync({ from: asset.localUri, to: cardDefaultDir })
+            const fileinfo = await FS.getInfoAsync(cardDefaultDir)
+
+            if (!fileinfo.exists) {
+                Logger.info('Default character asset not found, creating from bundle...')
+                const [asset] = await Asset.loadAsync(require('./../../assets/models/aibot.png'))
+                await asset.downloadAsync()
+
+                if (asset.localUri) {
+                    await FS.copyAsync({ from: asset.localUri, to: cardDefaultDir })
+                    Logger.info(`Successfully copied asset to: ${cardDefaultDir}`)
+                } else {
+                    throw new Error('Asset localUri is null after download.')
+                }
+            }
+            await createCharacterFromImage(cardDefaultDir)
+        } catch (e: any) {
+            Logger.error('Failed to create default character card: ' + e.message)
         }
-        await createCharacterFromImage(cardDefaultDir)
     }
 
     export const useCharacterUpdater = () => {
@@ -845,4 +858,3 @@ export const replaceMacros = (text: string) => {
     for (const rule of rules) newtext = newtext.replaceAll(rule.macro, rule.value)
     return newtext
 }
-

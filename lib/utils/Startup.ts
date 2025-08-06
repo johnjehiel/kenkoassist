@@ -123,15 +123,22 @@ const migrateTTSData_0_8_5_to_0_8_6 = () => {
 
 export const generateDefaultDirectories = async () => {
     // Removed: 'instruct', 'persona', 'presets', 'lorebooks'
-    Object.values(AppDirectory).map(async (dir) => {
-        await makeDirectoryAsync(`${dir}`, {})
+    const directoryPromises = Object.values(AppDirectory).map((dir) => {
+        return makeDirectoryAsync(`${dir}`, {})
             .then(() =>
                 Logger.info(
                     `Successfully made directory: ${dir.replace(`${documentDirectory}`, '')}`
                 )
             )
-            .catch(() => {})
+            .catch((e) => {
+                // It's okay if the directory already exists, but log other errors
+                if (e.message.includes('already exists')) return
+                Logger.error(`Failed to create directory ${dir}: ${e.message}`)
+            })
     })
+
+    // Wait for all directory creation promises to complete
+    await Promise.all(directoryPromises)
 }
 
 const migratePresets_0_8_3_to_0_8_4 = async () => {
@@ -203,29 +210,38 @@ export const startupApp = () => {
     //Chats.useChatState.getState().reset()
     //Characters.useCharacterCard.getState().unloadCard()
 
-    // Sets default preferences
-    setAppDefaultSettings()
-    generateDefaultDirectories()
-    setDefaultCharacter()
-    setDefaultInstruct()
+    const initialize = async () => {
+        // Sets default preferences
+        setAppDefaultSettings()
 
-    // Initialize the default card
-    createDefaultCard()
+        // NOW it waits for directories to be created before proceeding
+        await generateDefaultDirectories()
 
-    // get fp16, i8mm and dotprod data
-    setCPUFeatures()
+        await setDefaultCharacter()
+        setDefaultInstruct()
 
-    // Local Model Data in case external models are deleted
-    Model.verifyModelList()
+        // Initialize the default card
+        await createDefaultCard()
 
-    // migrations for old versions
-    migrateModelData_0_7_10_to_0_8_0()
-    migrateModelData_0_8_4_to_0_8_5()
-    migratePresets_0_8_3_to_0_8_4()
-    migrateTTSData_0_8_5_to_0_8_6()
-    migrateAppMode_0_8_5_to_0_8_6()
+        // get fp16, i8mm and dotprod data
+        await setCPUFeatures()
 
-    lockScreenOrientation()
-    setBackgroundColorAsync(Theme.useColorState.getState().color.neutral._100)
-    Logger.info('Resetting state values for startup.')
+        // Local Model Data in case external models are deleted
+        Model.verifyModelList()
+
+        // migrations for old versions
+        migrateModelData_0_7_10_to_0_8_0()
+        migrateModelData_0_8_4_to_0_8_5()
+        await migratePresets_0_8_3_to_0_8_4()
+        migrateTTSData_0_8_5_to_0_8_6()
+        migrateAppMode_0_8_5_to_0_8_6()
+
+        lockScreenOrientation()
+        await setBackgroundColorAsync(Theme.useColorState.getState().color.neutral._100)
+        Logger.info('Resetting state values for startup.')
+    }
+
+    // Run the async initialization
+    initialize()
 }
+

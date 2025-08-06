@@ -179,17 +179,24 @@ export namespace Chats {
             })),
 
         addEntry: async (name: string, is_user: boolean, message: string) => {
-            const messages = get().data?.messages
-            const chatId = get().data?.id
-            if (!messages || !chatId) return
-            const order = messages.length > 0 ? messages[messages.length - 1].order + 1 : 0
+            const currentData = get().data
+            if (!currentData?.messages || !currentData.id) return
 
-            const entry = await db.mutate.createEntry(chatId, name, is_user, order, message)
-            if (entry) messages.push(entry)
+            const order =
+                currentData.messages.length > 0
+                    ? currentData.messages[currentData.messages.length - 1].order + 1
+                    : 0
+
+            const entry = await db.mutate.createEntry(currentData.id, name, is_user, order, message)
+            if (!entry) return
+
+            const newMessages = [...currentData.messages, entry]
+
             set((state) => ({
                 ...state,
-                data: state?.data ? { ...state.data, messages: messages } : state.data,
+                data: state.data ? { ...state.data, messages: newMessages } : state.data,
             }))
+
             return entry?.swipes[0].id
         },
         deleteEntry: async (index: number) => {
