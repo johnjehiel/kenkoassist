@@ -5,11 +5,14 @@ import CharacterList from '@screens/CharacterMenu/CharacterList'
 import { SafeAreaView } from 'react-native'
 
 import SettingsDrawer from '../SettingsDrawer'
+import { useShallow } from 'zustand/react/shallow'
 
 const CharacterMenu = () => {
-    const { showDrawer } = Drawer.useDrawerState((state) => ({
-        showDrawer: state.values?.[Drawer.ID.SETTINGS],
-    }))
+    const { showDrawer } = Drawer.useDrawerState(
+        useShallow((state) => ({
+            showDrawer: state.values?.[Drawer.ID.SETTINGS],
+        }))
+    )
 
     return (
         <Drawer.Gesture
@@ -21,11 +24,11 @@ const CharacterMenu = () => {
                     flex: 1,
                     flexDirection: 'row',
                 }}>
-                <HeaderTitle title='KenkoAssist' />
+                <HeaderTitle title="KenkoAssist" />
                 <HeaderButton headerLeft={() => <Drawer.Button drawerID={Drawer.ID.SETTINGS} />} />
-                
+
                 <CharacterList showHeader={!showDrawer} />
-                
+
                 <SettingsDrawer />
             </SafeAreaView>
         </Drawer.Gesture>
@@ -33,3 +36,4 @@ const CharacterMenu = () => {
 }
 
 export default CharacterMenu
+
